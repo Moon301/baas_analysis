@@ -32,10 +32,11 @@ async def get_efficiency_analysis(
 @router.get("/battery/comparison")
 async def get_battery_comparison(
     limit: int = Query(10, ge=1, le=50),
+    offset: int = Query(0, ge=0),
     db: asyncpg.Connection = Depends(get_db)
 ):
     """배터리 성능 비교 데이터 조회"""
-    return await analytics_crud.get_battery_comparison(db, limit=limit)
+    return await analytics_crud.get_battery_comparison(db, limit=limit, offset=offset)
 
 @router.get("/battery/detail/{clientid}")
 async def get_battery_detail(
@@ -49,21 +50,29 @@ async def get_battery_detail(
 @router.get("/summary")
 async def get_analytics_summary(db: asyncpg.Connection = Depends(get_db)):
     """분석 요약 정보 조회"""
-    # 대시보드 통계
-    dashboard_stats = await analytics_crud.get_dashboard_stats(db)
-    
-    # 상위 5개 차량 성능
-    top_performance = await analytics_crud.get_performance_ranking(db, limit=5)
-    
-    # 최근 7일 효율성
-    recent_efficiency = await analytics_crud.get_efficiency_analysis(db, days=7)
-    
-    return {
-        "dashboard": dashboard_stats,
-        "top_performance": top_performance,
-        "recent_efficiency": {
-            "days": 7,
-            "total_records": len(recent_efficiency),
-            "avg_efficiency": sum(e['efficiency'] for e in recent_efficiency) / len(recent_efficiency) if recent_efficiency else 0
-        }
-    }
+    return await analytics_crud.get_analytics_summary(db)
+
+@router.post("/materialized-views/refresh")
+async def refresh_materialized_views(db: asyncpg.Connection = Depends(get_db)):
+    """MATERIALIZED VIEW 새로고침 (관리자용)"""
+    return await analytics_crud.refresh_materialized_views(db)
+
+@router.get("/materialized-views/status")
+async def get_materialized_view_status(db: asyncpg.Connection = Depends(get_db)):
+    """MATERIALIZED VIEW 상태 및 통계 정보 조회"""
+    return await analytics_crud.get_materialized_view_status(db)
+
+@router.get("/battery/overall-distribution")
+async def get_overall_performance_distribution(db: asyncpg.Connection = Depends(get_db)):
+    """전체 차량의 성능 등급 분포 조회"""
+    return await analytics_crud.get_overall_performance_distribution(db)
+
+@router.get("/battery/vehicles-by-grade/{grade}")
+async def get_vehicles_by_grade(
+    grade: str,
+    limit: int = Query(10, ge=1, le=50),
+    offset: int = Query(0, ge=0),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    """특정 등급의 차량 목록 조회"""
+    return await analytics_crud.get_vehicles_by_grade(db, grade, limit, offset)
