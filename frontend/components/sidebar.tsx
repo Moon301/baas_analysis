@@ -12,6 +12,11 @@ const navigation = [
     icon: Home,
   },
   {
+    name: "배터리 성능 평가",
+    href: "/battery-performance",
+    icon: Activity,
+  },
+  {
     name: "주행 특성 분석",
     href: "/driving-analysis",
     icon: Car,
@@ -25,11 +30,6 @@ const navigation = [
     name: "성능 순위 분석",
     href: "/performance-ranking",
     icon: BarChart3,
-  },
-  {
-    name: "배터리 성능 평가",
-    href: "/battery-performance",
-    icon: Activity,
   },
 ]
 

@@ -243,7 +243,7 @@ export function DashboardOverview() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-900">
-              {bwDashboardData.total_data_rows.toLocaleString()}
+              {bwDashboardData.total_data_rows.toLocaleString()}행
             </div>
             <p className="text-sm text-blue-700 mt-1">데이터 행</p>
             <p className="text-sm text-blue-700">
@@ -262,7 +262,7 @@ export function DashboardOverview() {
               {bwDashboardData.collection_days.toFixed(0)}일
             </div>
             <p className="text-sm text-green-700 mt-1">
-              {bwDashboardData.data_start_date} ~ {bwDashboardData.data_end_date}
+              {new Date(bwDashboardData.data_start_date).toLocaleDateString('ko-KR')} ~ {new Date(bwDashboardData.data_end_date).toLocaleDateString('ko-KR')}
             </p>
             <p className="text-sm text-green-700">
               약 {(bwDashboardData.collection_days / 30).toFixed(1)}개월
@@ -277,9 +277,9 @@ export function DashboardOverview() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-purple-900">
-              {bwDashboardData.total_unique_clients}
+              {bwDashboardData.total_unique_clients}대
             </div>
-            <p className="text-sm text-purple-700 mt-1">총 차량</p>
+            <p className="text-sm text-purple-700 mt-1">총 차량 수</p>
             <p className="text-sm text-purple-700">
               차종: {bwDashboardData.unique_car_types}종
             </p>
@@ -293,7 +293,7 @@ export function DashboardOverview() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-orange-900">
-              {bwDashboardData.total_all_segments.toLocaleString()}
+              {bwDashboardData.total_all_segments.toLocaleString()}개
             </div>
             <p className="text-sm text-orange-700 mt-1">전체 구간</p>
             <p className="text-sm text-orange-700">
@@ -339,7 +339,7 @@ export function DashboardOverview() {
                   <span className="font-medium text-red-600">{bwDashboardData.invalid_segments}개</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">구간당 평균 레코드</span>
+                  <span className="text-sm text-gray-600">구간당 최소 수량</span>
                   <span className="font-medium text-blue-600">10개 이상</span>
                 </div>
               </div>
@@ -432,10 +432,10 @@ export function DashboardOverview() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Client ID별 차량 현황
+            모델별 차량 현황
           </CardTitle>
           <CardDescription>
-            수집된 clientid별로 차량 정보를 조회할 수 있습니다
+            수집된 모델별로 차량 정보를 조회할 수 있습니다
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -467,7 +467,7 @@ export function DashboardOverview() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-gray-50">
-                      <th className="text-left p-3 font-medium">Client ID</th>
+                      <th className="text-left p-3 font-medium">모델 ID</th>
                       <th className="text-left p-3 font-medium">차종</th>
                       <th className="text-left p-3 font-medium">연식</th>
                       <th className="text-left p-3 font-medium">전체 구간</th>

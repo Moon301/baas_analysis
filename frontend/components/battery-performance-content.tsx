@@ -1,398 +1,271 @@
 "use client";
 
-import { useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Area, AreaChart, Tooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { useState, useEffect } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Area, AreaChart, Tooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // 타입 정의
-interface VehicleData {
-  drivingData: Array<{ time: string; battery: number; driving: boolean }>;
-  chargingData: Array<{ time: string; battery: number; charging: boolean }>;
-  efficiencyData: Array<{ segment: string; efficiency: number; status: string }>;
+interface BatteryPerformanceData {
+  clientid: string;
+  mileage_segment: string;
+  analysis_method: string;
+  scores: {
+    soh: number;
+    cell_balance: number;
+    driving_efficiency: number;
+    charging_efficiency: number;
+    temperature_stability: number;
+    charging_habit: number;
+    total: number;
+  };
+  metrics: {
+    avg_soh: number;
+    avg_cell_imbalance: number;
+    avg_soc_per_km: number;
+    slow_charge_efficiency: number;
+    fast_charge_efficiency: number;
+    avg_temp_range: number;
+    avg_start_soc: number;
+    avg_end_soc: number;
+  };
+  data_quality: {
+    records: number;
+    segments: number;
+  };
 }
 
-interface DummyData {
-  carTypes: Array<{ name: string; value: number; color: string }>;
-  clients: Array<{ name: string; value: number; color: string }>;
-  summary: {
-    totalSegments: number;
-    totalDataRows: number;
-    dataPeriod: string;
+interface LatestPerformanceData {
+  clientid: string;
+  analysis_method: string;
+  scores: {
+    soh: number;
+    cell_balance: number;
+    driving_efficiency: number;
+    charging_efficiency: number;
+    temperature_stability: number;
+    charging_habit: number;
+    total: number;
   };
-  performanceRanking: {
-    excellent: Array<{ id: string; carType: string; model: string; efficiency: number; clientId: string }>;
-    good: Array<{ id: string; carType: string; model: string; efficiency: number; clientId: string }>;
-    poor: Array<{ id: string; carType: string; model: string; efficiency: number; clientId: string }>;
+  metrics: {
+    avg_soh: number;
+    avg_cell_imbalance: number;
+    avg_soc_per_km: number;
+    slow_charge_efficiency: number;
+    fast_charge_efficiency: number;
+    avg_temp_range: number;
+    avg_start_soc: number;
+    avg_end_soc: number;
   };
-  vehicleData: Record<string, VehicleData>;
+  data_quality: {
+    window_days: number;
+    basic_records: number;
+    soh_records: number;
+    driving_segments: number;
+    charging_segments: number;
+    slow_charge_count: number;
+    fast_charge_count: number;
+  };
+  availability: {
+    soh: boolean;
+    cell: boolean;
+    driving: boolean;
+    charging: boolean;
+    temp: boolean;
+    habit: boolean;
+  };
+  coverage_grade: string;
 }
 
-// Dummy 데이터
-const dummyData: DummyData = {
-  carTypes: [
-    { name: 'SUV', value: 45, color: '#8884d8' },
-    { name: '세단', value: 30, color: '#82ca9d' },
-    { name: '해치백', value: 15, color: '#ffc658' },
-    { name: '왜건', value: 10, color: '#ff7300' }
-  ],
-  clients: [
-    { name: '개인고객', value: 60, color: '#8884d8' },
-    { name: '기업고객', value: 25, color: '#82ca9d' },
-    { name: '리스고객', value: 15, color: '#ffc658' }
-  ],
-  summary: {
-    totalSegments: 1250,
-    totalDataRows: 45678,
-    dataPeriod: '2024.01.01 ~ 2024.12.31'
-  },
-  performanceRanking: {
-    excellent: [
-      { id: 'client001', carType: 'SUV', model: 'Model X', efficiency: 95, clientId: 'client001' },
-      { id: 'client002', carType: '세단', model: 'Model S', efficiency: 92, clientId: 'client002' },
-      { id: 'client003', carType: 'SUV', model: 'Model Y', efficiency: 90, clientId: 'client003' }
-    ],
-    good: [
-      { id: 'client004', carType: '해치백', model: 'Model 3', efficiency: 78, clientId: 'client004' },
-      { id: 'client005', carType: '세단', model: 'Model E', efficiency: 75, clientId: 'client005' }
-    ],
-    poor: [
-      { id: 'client006', carType: '왜건', model: 'Model W', efficiency: 45, clientId: 'client006' },
-      { id: 'client007', carType: 'SUV', model: 'Model Z', efficiency: 52, clientId: 'client007' }
-    ]
-  },
-  vehicleData: {
-    'client001': {
-      drivingData: [
-        { time: '00:00', battery: 100, driving: true },
-        { time: '01:00', battery: 95, driving: true },
-        { time: '02:00', battery: 90, driving: true },
-        { time: '03:00', battery: 85, driving: false },
-        { time: '04:00', battery: 85, driving: false },
-        { time: '05:00', battery: 85, driving: false },
-        { time: '06:00', battery: 85, driving: false },
-        { time: '07:00', battery: 85, driving: true },
-        { time: '08:00', battery: 80, driving: true },
-        { time: '09:00', battery: 75, driving: true },
-        { time: '10:00', battery: 70, driving: false },
-        { time: '11:00', battery: 70, driving: false },
-        { time: '12:00', battery: 70, driving: false },
-        { time: '13:00', battery: 70, driving: true },
-        { time: '14:00', battery: 65, driving: true },
-        { time: '15:00', battery: 60, driving: true },
-        { time: '16:00', battery: 55, driving: false },
-        { time: '17:00', battery: 55, driving: false },
-        { time: '18:00', battery: 55, driving: false },
-        { time: '19:00', battery: 55, driving: true },
-        { time: '20:00', battery: 50, driving: true },
-        { time: '21:00', battery: 45, driving: true },
-        { time: '22:00', battery: 40, driving: false },
-        { time: '23:00', battery: 40, driving: false }
-      ],
-      chargingData: [
-        { time: '00:00', battery: 40, charging: false },
-        { time: '01:00', battery: 40, charging: false },
-        { time: '02:00', battery: 40, charging: false },
-        { time: '03:00', battery: 40, charging: false },
-        { time: '04:00', battery: 40, charging: false },
-        { time: '05:00', battery: 40, charging: false },
-        { time: '06:00', battery: 40, charging: false },
-        { time: '07:00', battery: 40, charging: false },
-        { time: '08:00', battery: 40, charging: false },
-        { time: '09:00', battery: 40, charging: false },
-        { time: '10:00', battery: 40, charging: false },
-        { time: '11:00', battery: 40, charging: false },
-        { time: '12:00', battery: 40, charging: false },
-        { time: '13:00', battery: 40, charging: false },
-        { time: '14:00', battery: 40, charging: false },
-        { time: '15:00', battery: 40, charging: false },
-        { time: '16:00', battery: 40, charging: false },
-        { time: '17:00', battery: 40, charging: false },
-        { time: '18:00', battery: 40, charging: false },
-        { time: '19:00', battery: 40, charging: false },
-        { time: '20:00', battery: 40, charging: false },
-        { time: '21:00', battery: 40, charging: false },
-        { time: '22:00', battery: 40, charging: true },
-        { time: '23:00', battery: 100, charging: true }
-      ],
-      efficiencyData: [
-        { segment: '구간1', efficiency: 95, status: 'excellent' },
-        { segment: '구간2', efficiency: 88, status: 'good' },
-        { segment: '구간3', efficiency: 92, status: 'excellent' },
-        { segment: '구간4', efficiency: 85, status: 'good' },
-        { segment: '구간5', efficiency: 90, status: 'excellent' }
-      ]
-    },
-    'client002': {
-      drivingData: [
-        { time: '00:00', battery: 100, driving: false },
-        { time: '01:00', battery: 100, driving: false },
-        { time: '02:00', battery: 100, driving: false },
-        { time: '03:00', battery: 100, driving: false },
-        { time: '04:00', battery: 100, driving: false },
-        { time: '05:00', battery: 100, driving: false },
-        { time: '06:00', battery: 100, driving: true },
-        { time: '07:00', battery: 95, driving: true },
-        { time: '08:00', battery: 90, driving: true },
-        { time: '09:00', battery: 85, driving: false },
-        { time: '10:00', battery: 85, driving: false },
-        { time: '11:00', battery: 85, driving: false },
-        { time: '12:00', battery: 85, driving: true },
-        { time: '13:00', battery: 80, driving: true },
-        { time: '14:00', battery: 75, driving: true },
-        { time: '15:00', battery: 70, driving: false },
-        { time: '16:00', battery: 70, driving: false },
-        { time: '17:00', battery: 70, driving: true },
-        { time: '18:00', battery: 65, driving: true },
-        { time: '19:00', battery: 60, driving: true },
-        { time: '20:00', battery: 55, driving: false },
-        { time: '21:00', battery: 55, driving: false },
-        { time: '22:00', battery: 55, driving: false },
-        { time: '23:00', battery: 55, driving: false }
-      ],
-      chargingData: [
-        { time: '00:00', battery: 55, charging: false },
-        { time: '01:00', battery: 55, charging: false },
-        { time: '02:00', battery: 55, charging: false },
-        { time: '03:00', battery: 55, charging: false },
-        { time: '04:00', battery: 55, charging: false },
-        { time: '05:00', battery: 55, charging: false },
-        { time: '06:00', battery: 55, charging: false },
-        { time: '07:00', battery: 55, charging: false },
-        { time: '08:00', battery: 55, charging: false },
-        { time: '09:00', battery: 55, charging: false },
-        { time: '10:00', battery: 55, charging: false },
-        { time: '11:00', battery: 55, charging: false },
-        { time: '12:00', battery: 55, charging: false },
-        { time: '13:00', battery: 55, charging: false },
-        { time: '14:00', battery: 55, charging: false },
-        { time: '15:00', battery: 55, charging: false },
-        { time: '16:00', battery: 55, charging: false },
-        { time: '17:00', battery: 55, charging: false },
-        { time: '18:00', battery: 55, charging: false },
-        { time: '19:00', battery: 55, charging: false },
-        { time: '20:00', battery: 55, charging: false },
-        { time: '21:00', battery: 55, charging: false },
-        { time: '22:00', battery: 55, charging: false },
-        { time: '23:00', battery: 55, charging: true }
-      ],
-      efficiencyData: [
-        { segment: '구간1', efficiency: 92, status: 'excellent' },
-        { segment: '구간2', efficiency: 85, status: 'good' },
-        { segment: '구간3', efficiency: 88, status: 'good' },
-        { segment: '구간4', efficiency: 90, status: 'excellent' },
-        { segment: '구간5', efficiency: 87, status: 'good' }
-      ]
-    },
-    'client004': {
-      drivingData: [
-        { time: '00:00', battery: 100, driving: false },
-        { time: '01:00', battery: 100, driving: false },
-        { time: '02:00', battery: 100, driving: false },
-        { time: '03:00', battery: 100, driving: false },
-        { time: '04:00', battery: 100, driving: false },
-        { time: '05:00', battery: 100, driving: false },
-        { time: '06:00', battery: 100, driving: true },
-        { time: '07:00', battery: 92, driving: true },
-        { time: '08:00', battery: 84, driving: true },
-        { time: '09:00', battery: 76, driving: false },
-        { time: '10:00', battery: 76, driving: false },
-        { time: '11:00', battery: 76, driving: false },
-        { time: '12:00', battery: 76, driving: true },
-        { time: '13:00', battery: 68, driving: true },
-        { time: '14:00', battery: 60, driving: true },
-        { time: '15:00', battery: 52, driving: false },
-        { time: '16:00', battery: 52, driving: false },
-        { time: '17:00', battery: 52, driving: true },
-        { time: '18:00', battery: 44, driving: true },
-        { time: '19:00', battery: 36, driving: true },
-        { time: '20:00', battery: 28, driving: false },
-        { time: '21:00', battery: 28, driving: false },
-        { time: '22:00', battery: 28, driving: false },
-        { time: '23:00', battery: 28, driving: false }
-      ],
-      chargingData: [
-        { time: '00:00', battery: 28, charging: false },
-        { time: '01:00', battery: 28, charging: false },
-        { time: '02:00', battery: 28, charging: false },
-        { time: '03:00', battery: 28, charging: false },
-        { time: '04:00', battery: 28, charging: false },
-        { time: '05:00', battery: 28, charging: false },
-        { time: '06:00', battery: 28, charging: false },
-        { time: '07:00', battery: 28, charging: false },
-        { time: '08:00', battery: 28, charging: false },
-        { time: '09:00', battery: 28, charging: false },
-        { time: '10:00', battery: 28, charging: false },
-        { time: '11:00', battery: 28, charging: false },
-        { time: '12:00', battery: 28, charging: false },
-        { time: '13:00', battery: 28, charging: false },
-        { time: '14:00', battery: 28, charging: false },
-        { time: '15:00', battery: 28, charging: false },
-        { time: '16:00', battery: 28, charging: false },
-        { time: '17:00', battery: 28, charging: false },
-        { time: '18:00', battery: 28, charging: false },
-        { time: '19:00', battery: 28, charging: false },
-        { time: '20:00', battery: 28, charging: false },
-        { time: '21:00', battery: 28, charging: false },
-        { time: '22:00', battery: 28, charging: false },
-        { time: '23:00', battery: 100, charging: true }
-      ],
-      efficiencyData: [
-        { segment: '구간1', efficiency: 78, status: 'good' },
-        { segment: '구간2', efficiency: 72, status: 'good' },
-        { segment: '구간3', efficiency: 75, status: 'good' },
-        { segment: '구간4', efficiency: 68, status: 'good' },
-        { segment: '구간5', efficiency: 70, status: 'good' }
-      ]
-    },
-    'client006': {
-      drivingData: [
-        { time: '00:00', battery: 100, driving: false },
-        { time: '01:00', battery: 100, driving: false },
-        { time: '02:00', battery: 100, driving: false },
-        { time: '03:00', battery: 100, driving: false },
-        { time: '04:00', battery: 100, driving: false },
-        { time: '05:00', battery: 100, driving: false },
-        { time: '06:00', battery: 100, driving: true },
-        { time: '07:00', battery: 88, driving: true },
-        { time: '08:00', battery: 76, driving: true },
-        { time: '09:00', battery: 64, driving: false },
-        { time: '10:00', battery: 64, driving: false },
-        { time: '11:00', battery: 64, driving: false },
-        { time: '12:00', battery: 64, driving: true },
-        { time: '13:00', battery: 52, driving: true },
-        { time: '14:00', battery: 40, driving: true },
-        { time: '15:00', battery: 28, driving: false },
-        { time: '16:00', battery: 28, driving: false },
-        { time: '17:00', battery: 28, driving: true },
-        { time: '18:00', battery: 16, driving: true },
-        { time: '19:00', battery: 4, driving: true },
-        { time: '20:00', battery: 0, driving: false },
-        { time: '21:00', battery: 0, driving: false },
-        { time: '22:00', battery: 0, driving: false },
-        { time: '23:00', battery: 0, driving: false }
-      ],
-      chargingData: [
-        { time: '00:00', battery: 0, charging: false },
-        { time: '01:00', battery: 0, charging: false },
-        { time: '02:00', battery: 0, charging: false },
-        { time: '03:00', battery: 0, charging: false },
-        { time: '04:00', battery: 0, charging: false },
-        { time: '05:00', battery: 0, charging: false },
-        { time: '06:00', battery: 0, charging: false },
-        { time: '07:00', battery: 0, charging: false },
-        { time: '08:00', battery: 0, charging: false },
-        { time: '09:00', battery: 0, charging: false },
-        { time: '10:00', battery: 0, charging: false },
-        { time: '11:00', battery: 0, charging: false },
-        { time: '12:00', battery: 0, charging: false },
-        { time: '13:00', battery: 0, charging: false },
-        { time: '14:00', battery: 0, charging: false },
-        { time: '15:00', battery: 0, charging: false },
-        { time: '16:00', battery: 0, charging: false },
-        { time: '17:00', battery: 0, charging: false },
-        { time: '18:00', battery: 0, charging: false },
-        { time: '19:00', battery: 0, charging: false },
-        { time: '20:00', battery: 0, charging: false },
-        { time: '21:00', battery: 0, charging: false },
-        { time: '22:00', battery: 0, charging: false },
-        { time: '23:00', battery: 100, charging: true }
-      ],
-      efficiencyData: [
-        { segment: '구간1', efficiency: 45, status: 'poor' },
-        { segment: '구간2', efficiency: 38, status: 'poor' },
-        { segment: '구간3', efficiency: 42, status: 'poor' },
-        { segment: '구간4', efficiency: 35, status: 'poor' },
-        { segment: '구간5', efficiency: 40, status: 'poor' }
-      ]
-    }
+interface PerformanceSummary {
+  total_clients: number;
+  total_records: number;
+  score_stats: {
+    average: number;
+    minimum: number;
+    maximum: number;
+    standard_deviation: number;
+  };
+  grade_distribution: {
+    excellent: number;
+    good: number;
+    poor: number;
+  };
+}
+
+interface LatestPerformanceSummary {
+  total_clients: number;
+  total_records: number;
+  score_stats: {
+    average: number;
+    minimum: number;
+    maximum: number;
+    standard_deviation: number;
+  };
+  grade_distribution: {
+    excellent: number;
+    good: number;
+    poor: number;
+  };
+  coverage_distribution: {
+    high: number;
+    medium: number;
+    low: number;
+  };
+}
+
+interface PaginationInfo {
+  total_count: number;
+  current_offset: number;
+  current_limit: number;
+  has_more: boolean;
+  next_offset: number | null;
+  total_pages: number;
+}
+
+// API 호출 함수들
+const fetchBatteryPerformance = async (limit: number = 50, offset: number = 0): Promise<{data: BatteryPerformanceData[], pagination: PaginationInfo}> => {
+  try {
+    const response = await fetch(`http://localhost:8004/api/v1/analytics/battery-performance?limit=${limit}&offset=${offset}`);
+    if (!response.ok) throw new Error('API 호출 실패');
+    return await response.json();
+  } catch (error) {
+    console.error('배터리 성능 데이터 조회 실패:', error);
+    return { data: [], pagination: { total_count: 0, current_offset: 0, current_limit: limit, has_more: false, next_offset: null, total_pages: 0 } };
+  }
+};
+
+const fetchPerformanceSummary = async (): Promise<PerformanceSummary> => {
+  try {
+    const response = await fetch('http://localhost:8004/api/v1/analytics/battery-performance/summary');
+    if (!response.ok) throw new Error('API 호출 실패');
+    return await response.json();
+  } catch (error) {
+    console.error('성능 요약 조회 실패:', error);
+    return {
+      total_clients: 0,
+      total_records: 0,
+      score_stats: { average: 0, minimum: 0, maximum: 0, standard_deviation: 0 },
+      grade_distribution: { excellent: 0, good: 0, poor: 0 }
+    };
+  }
+};
+
+const fetchBatteryPerformanceLatest = async (limit: number = 50, offset: number = 0): Promise<{data: LatestPerformanceData[], pagination: PaginationInfo}> => {
+  try {
+    const response = await fetch(`http://localhost:8004/api/v1/analytics/battery-performance/latest?limit=${limit}&offset=${offset}`);
+    if (!response.ok) throw new Error('API 호출 실패');
+    return await response.json();
+  } catch (error) {
+    console.error('최근 3개월 성능 데이터 조회 실패:', error);
+    return { data: [], pagination: { total_count: 0, current_offset: 0, current_limit: limit, has_more: false, next_offset: null, total_pages: 0 } };
+  }
+};
+
+const fetchLatestPerformanceSummary = async (): Promise<LatestPerformanceSummary> => {
+  try {
+    const response = await fetch('http://localhost:8004/api/v1/analytics/battery-performance/latest/summary');
+    if (!response.ok) throw new Error('API 호출 실패');
+    return await response.json();
+  } catch (error) {
+    console.error('최근 3개월 성능 요약 조회 실패:', error);
+    return {
+      total_clients: 0,
+      total_records: 0,
+      score_stats: { average: 0, minimum: 0, maximum: 0, standard_deviation: 0 },
+      grade_distribution: { excellent: 0, good: 0, poor: 0 },
+      coverage_distribution: { high: 0, medium: 0, low: 0 }
+    };
   }
 };
 
 export default function BatteryPerformanceContent() {
-  const [selectedGraph, setSelectedGraph] = useState('driving');
+  const [activeTab, setActiveTab] = useState('overall');
+  const [performanceData, setPerformanceData] = useState<BatteryPerformanceData[]>([]);
+  const [latestPerformanceData, setLatestPerformanceData] = useState<LatestPerformanceData[]>([]);
+  const [summary, setSummary] = useState<PerformanceSummary | null>(null);
+  const [latestSummary, setLatestSummary] = useState<LatestPerformanceSummary | null>(null);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [latestPagination, setLatestPagination] = useState<PaginationInfo | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [latestLoading, setLatestLoading] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
 
-  const renderGraph = () => {
-    if (!selectedVehicle) return null;
-
-    const data = dummyData.vehicleData[selectedVehicle];
-    if (!data) return null;
-
-    switch (selectedGraph) {
-            case 'driving':
-        return (
-          <LineChart width={700} height={350} data={data.drivingData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="time" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Line 
-              type="monotone" 
-              dataKey="battery" 
-              stroke="#8884d8" 
-              strokeWidth={2}
-              connectNulls={false}
-            />
-            {data.drivingData.map((point: { time: string; battery: number; driving: boolean }, index: number) => (
-              <Line
-                key={index}
-                type="monotone"
-                dataKey="battery"
-                data={point.driving ? [point] : []}
-                stroke="#8884d8"
-                strokeWidth={3}
-                dot={{ fill: point.driving ? '#8884d8' : 'transparent' }}
-              />
-            ))}
-          </LineChart>
-        );
-      case 'charging':
-        return (
-          <AreaChart width={700} height={350} data={data.chargingData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="time" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Area 
-              type="monotone" 
-              dataKey="battery" 
-              stroke="#82ca9d" 
-              fill="#82ca9d" 
-              fillOpacity={0.6}
-            />
-          </AreaChart>
-        );
-      case 'efficiency':
-        return (
-          <LineChart width={700} height={350} data={data.efficiencyData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="segment" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Line 
-              type="monotone" 
-              dataKey="efficiency" 
-              stroke="#ffc658" 
-              strokeWidth={3}
-              dot={{ fill: '#ffc658', r: 6 }}
-            />
-          </LineChart>
-        );
-      default:
-        return null;
+  // 데이터 로드 함수들
+  const loadPerformanceData = async (offset: number = 0) => {
+    setLoading(true);
+    try {
+      const result = await fetchBatteryPerformance(50, offset);
+      setPerformanceData(result.data);
+      setPagination(result.pagination);
+    } catch (error) {
+      console.error('데이터 로드 실패:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  return (
+  const loadLatestPerformanceData = async (offset: number = 0) => {
+    setLatestLoading(true);
+    try {
+      const result = await fetchBatteryPerformanceLatest(50, offset);
+      setLatestPerformanceData(result.data);
+      setLatestPagination(result.pagination);
+    } catch (error) {
+      console.error('최근 3개월 데이터 로드 실패:', error);
+    } finally {
+      setLatestLoading(false);
+    }
+  };
+
+  const loadSummary = async () => {
+    try {
+      const summaryData = await fetchPerformanceSummary();
+      setSummary(summaryData);
+    } catch (error) {
+      console.error('요약 데이터 로드 실패:', error);
+    }
+  };
+
+  const loadLatestSummary = async () => {
+    try {
+      const summaryData = await fetchLatestPerformanceSummary();
+      setLatestSummary(summaryData);
+    } catch (error) {
+      console.error('최근 3개월 요약 데이터 로드 실패:', error);
+    }
+  };
+
+  // 탭 변경 시 데이터 로드
+  useEffect(() => {
+    if (activeTab === 'mileage') {
+      loadPerformanceData();
+      loadSummary();
+    } else if (activeTab === 'threeMonth') {
+      loadLatestPerformanceData();
+      loadLatestSummary();
+    }
+  }, [activeTab]);
+
+  const getGradeColor = (score: number) => {
+    if (score >= 80) return 'bg-green-100 text-green-800 border-green-200';
+    if (score >= 60) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    return 'bg-red-100 text-red-800 border-red-200';
+  };
+
+  const getGradeText = (score: number) => {
+    if (score >= 80) return '우수';
+    if (score >= 60) return '보통';
+    return '나쁨';
+  };
+
+  // 종합점수 탭 렌더링
+  const renderOverallTab = () => (
     <div className="space-y-6">
-      {/* 전체 차량 성능 분포 대시보드 */}
       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
         <CardHeader>
           <CardTitle className="text-blue-800 flex items-center gap-2">
@@ -400,209 +273,577 @@ export default function BatteryPerformanceContent() {
             전체 차량 성능 분포
           </CardTitle>
           <CardDescription className="text-blue-600">
-            총 7대의 차량 중 등급별 분포
+            전체 차량의 배터리 성능 등급별 분포
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-            {/* 원형 그래프 */}
-            <div className="flex justify-center">
-              <div className="w-48 h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={[
-                        {
-                          name: '우수',
-                          value: 3,
-                          color: '#10b981'
-                        },
-                        {
-                          name: '보통',
-                          value: 2,
-                          color: '#f59e0b'
-                        },
-                        {
-                          name: '나쁨',
-                          value: 2,
-                          color: '#ef4444'
-                        }
-                      ]}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      dataKey="value"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                    >
-                      {[
-                        { name: '우수', value: 3, color: '#10b981' },
-                        { name: '보통', value: 2, color: '#f59e0b' },
-                        { name: '나쁨', value: 2, color: '#ef4444' }
-                      ].map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      formatter={(value, name) => [`${value}대`, name]}
-                      labelFormatter={(label) => `${label} 등급`}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+          <div className="text-center py-8">
+            <div className="text-2xl font-bold text-gray-700 mb-4">종합 성능 점수</div>
+            <div className="text-lg text-gray-600">
+              주행거리별 및 최근 3개월 성능을 종합하여 평가한 점수입니다.
             </div>
-            
-            {/* 통계 정보 */}
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
-                    3
-                  </div>
-                  <div className="text-sm text-green-600">우수</div>
-                  <div className="text-xs text-gray-500">
-                    42.9%
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-yellow-600">
-                    2
-                  </div>
-                  <div className="text-sm text-yellow-600">보통</div>
-                  <div className="text-xs text-gray-500">
-                    28.6%
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-red-600">
-                    2
-                  </div>
-                  <div className="text-sm text-red-600">나쁨</div>
-                  <div className="text-xs text-gray-500">
-                    28.6%
-                  </div>
-                </div>
-              </div>
-              
-              {/* 추가 통계 */}
-              <div className="mt-6 p-4 bg-white rounded-lg border border-blue-100">
-                <div className="text-sm text-blue-800 font-medium mb-2">성능 요약</div>
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <span className="text-gray-600">평균 효율:</span>
-                    <span className="ml-2 font-medium text-blue-600">75.3%</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">최고 효율:</span>
-                    <span className="ml-2 font-medium text-green-600">95%</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">최저 효율:</span>
-                    <span className="ml-2 font-medium text-red-600">45%</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">표준편차:</span>
-                    <span className="ml-2 font-medium text-blue-600">±18.2%</span>
-                  </div>
-                </div>
-              </div>
+            <div className="mt-6">
+              <Button onClick={() => setActiveTab('mileage')} className="mr-4">
+                주행거리별 성능 보기
+              </Button>
+              <Button onClick={() => setActiveTab('threeMonth')} variant="outline">
+                3개월 성능 보기
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
 
-      {/* 성능 순위 섹션 */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold">차종별 배터리 성능 순위</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* 우수 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-green-100 text-green-800 border-green-200">우수</Badge>
-                <span className="text-sm text-muted-foreground">({dummyData.performanceRanking.excellent.length}대)</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {dummyData.performanceRanking.excellent.map((vehicle) => (
-                <Dialog key={vehicle.id}>
+  // 주행거리별 성능 탭 렌더링
+  const renderMileageTab = () => (
+    <div className="space-y-6">
+      {/* 요약 통계 */}
+      {summary && (
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <CardHeader>
+            <CardTitle className="text-blue-800 flex items-center gap-2">
+              <div className="h-5 w-5">📊</div>
+              주행거리별 배터리 성능 요약
+            </CardTitle>
+            <CardDescription className="text-blue-600">
+              주행거리 구간별 배터리 성능 점수 분석
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              {/* 원형 그래프 */}
+              <div className="flex justify-center">
+                <div className="w-48 h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: '우수', value: summary.grade_distribution.excellent, color: '#10b981' },
+                          { name: '보통', value: summary.grade_distribution.good, color: '#f59e0b' },
+                          { name: '나쁨', value: summary.grade_distribution.poor, color: '#ef4444' }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        dataKey="value"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                      >
+                        {[
+                          { name: '우수', value: summary.grade_distribution.excellent, color: '#10b981' },
+                          { name: '보통', value: summary.grade_distribution.good, color: '#f59e0b' },
+                          { name: '나쁨', value: summary.grade_distribution.poor, color: '#ef4444' }
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value, name) => [`${value}건`, name]}
+                        labelFormatter={(label) => `${label} 등급`}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              
+              {/* 통계 정보 */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {summary.grade_distribution.excellent}
+                    </div>
+                    <div className="text-sm text-green-600">우수</div>
+                    <div className="text-xs text-gray-500">
+                      {summary.total_records > 0 ? ((summary.grade_distribution.excellent / summary.total_records) * 100).toFixed(1) : 0}%
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-600">
+                      {summary.grade_distribution.good}
+                    </div>
+                    <div className="text-sm text-yellow-600">보통</div>
+                    <div className="text-xs text-gray-500">
+                      {summary.total_records > 0 ? ((summary.grade_distribution.good / summary.total_records) * 100).toFixed(1) : 0}%
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">
+                      {summary.grade_distribution.poor}
+                    </div>
+                    <div className="text-sm text-red-600">나쁨</div>
+                    <div className="text-xs text-gray-500">
+                      {summary.total_records > 0 ? ((summary.grade_distribution.poor / summary.total_records) * 100).toFixed(1) : 0}%
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 추가 통계 */}
+                <div className="mt-6 p-4 bg-white rounded-lg border border-blue-100">
+                  <div className="text-sm text-blue-800 font-medium mb-2">성능 요약</div>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="text-gray-600">평균 점수:</span>
+                      <span className="ml-2 font-medium text-blue-600">{summary.score_stats.average.toFixed(1)}점</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">최고 점수:</span>
+                      <span className="ml-2 font-medium text-green-600">{summary.score_stats.maximum.toFixed(1)}점</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">최저 점수:</span>
+                      <span className="ml-2 font-medium text-red-600">{summary.score_stats.minimum.toFixed(1)}점</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">표준편차:</span>
+                      <span className="ml-2 font-medium text-blue-600">±{summary.score_stats.standard_deviation.toFixed(1)}점</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 성능 데이터 테이블 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>주행거리 구간별 배터리 성능 점수</CardTitle>
+          <CardDescription>
+            총 {pagination?.total_count || 0}건의 성능 데이터
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8">데이터를 불러오는 중...</div>
+          ) : (
+            <div className="space-y-4">
+              {performanceData.map((item, index) => (
+                <Dialog key={`${item.clientid}-${item.mileage_segment}`}>
                   <DialogTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-between"
-                      onClick={() => setSelectedVehicle(vehicle.clientId)}
+                      className="w-full justify-between h-auto p-4"
+                      onClick={() => setSelectedVehicle(item.clientid)}
                     >
-                      <span>{vehicle.carType} - {vehicle.model}</span>
-                      <span className="text-green-600 font-semibold">{vehicle.efficiency}%</span>
+                      <div className="flex items-center gap-4">
+                        <div className="text-left">
+                          <div className="font-medium">{item.clientid}</div>
+                          <div className="text-sm text-gray-500">{item.mileage_segment} 구간</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <Badge className={getGradeColor(item.scores.total)}>
+                          {getGradeText(item.scores.total)}
+                        </Badge>
+                        <span className="font-semibold text-lg">{item.scores.total}점</span>
+                      </div>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="w-[90vw] max-w-[1200px] max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                        {item.clientid} - {item.mileage_segment} 구간 상세 분석
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-6">
+                      {/* 기본 정보 */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-gray-700">{item.scores.total}점</div>
+                          <div className="text-xs text-gray-600">총점</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-gray-700">{item.mileage_segment}</div>
+                          <div className="text-xs text-gray-600">주행거리 구간</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-gray-700">{item.data_quality.records}</div>
+                          <div className="text-xs text-gray-600">데이터 레코드</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-gray-700">{item.data_quality.segments}</div>
+                          <div className="text-xs text-gray-600">세그먼트 수</div>
+                        </div>
+                      </div>
+
+                      {/* 점수 분포 차트 */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm">세부 점수 분포</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={[
+                                { name: 'SOH', score: item.scores.soh, color: '#8884d8' },
+                                { name: '셀 밸런스', score: item.scores.cell_balance, color: '#82ca9d' },
+                                { name: '주행 효율', score: item.scores.driving_efficiency, color: '#ffc658' },
+                                { name: '충전 효율', score: item.scores.charging_efficiency, color: '#ff7300' },
+                                { name: '온도 안정성', score: item.scores.temperature_stability, color: '#8dd1e1' },
+                                { name: '충전 습관', score: item.scores.charging_habit, color: '#d084d0' }
+                              ]}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" />
+                                <YAxis />
+                                <Tooltip />
+                                <Bar dataKey="score" fill="#8884d8" />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* 상세 지표 */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-sm">배터리 상태 지표</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-3">
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">평균 SOH:</span>
+                                <span className="font-medium">{item.metrics.avg_soh.toFixed(2)}%</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">셀 불균형:</span>
+                                <span className="font-medium">{item.metrics.avg_cell_imbalance.toFixed(3)}V</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">온도 범위:</span>
+                                <span className="font-medium">{item.metrics.avg_temp_range.toFixed(1)}°C</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-sm">효율성 지표</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-3">
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">주행 효율:</span>
+                                <span className="font-medium">{item.metrics.avg_soc_per_km.toFixed(4)}%/km</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">완속 충전:</span>
+                                <span className="font-medium">{item.metrics.slow_charge_efficiency.toFixed(1)}%/h</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">급속 충전:</span>
+                                <span className="font-medium">{item.metrics.fast_charge_efficiency.toFixed(1)}%/h</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      {/* 권장사항 */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm">권장사항</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-sm text-gray-600">
+                            {item.scores.total >= 80 
+                              ? "배터리 상태가 매우 양호합니다. 현재 사용 패턴을 유지하세요."
+                              : item.scores.total >= 60 
+                              ? "배터리 상태가 보통입니다. 충전 패턴을 개선하면 효율을 높일 수 있습니다."
+                              : "배터리 상태가 좋지 않습니다. 전문가 상담을 권장합니다."
+                            }
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              ))}
+            </div>
+          )}
+
+          {/* 페이지네이션 */}
+          {pagination && pagination.total_pages > 1 && (
+            <div className="flex justify-center gap-2 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => loadPerformanceData(Math.max(0, pagination.current_offset - pagination.current_limit))}
+                disabled={pagination.current_offset === 0}
+              >
+                이전
+              </Button>
+              <span className="flex items-center px-4">
+                {Math.floor(pagination.current_offset / pagination.current_limit) + 1} / {pagination.total_pages}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => loadPerformanceData(pagination.next_offset || 0)}
+                disabled={!pagination.has_more}
+              >
+                다음
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  // 3개월 성능 탭 렌더링
+  const renderThreeMonthTab = () => (
+    <div className="space-y-6">
+      {/* 요약 통계 */}
+      {latestSummary && (
+        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+          <CardHeader>
+            <CardTitle className="text-green-800 flex items-center gap-2">
+              <div className="h-5 w-5">📈</div>
+              최근 3개월 배터리 성능 요약
+            </CardTitle>
+            <CardDescription className="text-green-600">
+              최근 3개월간의 배터리 성능 변화 추이 분석
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              {/* 원형 그래프 */}
+              <div className="flex justify-center">
+                <div className="w-48 h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: '우수', value: latestSummary.grade_distribution.excellent, color: '#10b981' },
+                          { name: '보통', value: latestSummary.grade_distribution.good, color: '#f59e0b' },
+                          { name: '나쁨', value: latestSummary.grade_distribution.poor, color: '#ef4444' }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        dataKey="value"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                      >
+                        {[
+                          { name: '우수', value: latestSummary.grade_distribution.excellent, color: '#10b981' },
+                          { name: '보통', value: latestSummary.grade_distribution.good, color: '#f59e0b' },
+                          { name: '나쁨', value: latestSummary.grade_distribution.poor, color: '#ef4444' }
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value, name) => [`${value}건`, name]}
+                        labelFormatter={(label) => `${label} 등급`}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              
+              {/* 통계 정보 */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {latestSummary.grade_distribution.excellent}
+                    </div>
+                    <div className="text-sm text-green-600">우수</div>
+                    <div className="text-xs text-gray-500">
+                      {latestSummary.total_records > 0 ? ((latestSummary.grade_distribution.excellent / latestSummary.total_records) * 100).toFixed(1) : 0}%
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-600">
+                      {latestSummary.grade_distribution.good}
+                    </div>
+                    <div className="text-sm text-yellow-600">보통</div>
+                    <div className="text-xs text-gray-500">
+                      {latestSummary.total_records > 0 ? ((latestSummary.grade_distribution.good / latestSummary.total_records) * 100).toFixed(1) : 0}%
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">
+                      {latestSummary.grade_distribution.poor}
+                    </div>
+                    <div className="text-sm text-red-600">나쁨</div>
+                    <div className="text-xs text-gray-500">
+                      {latestSummary.total_records > 0 ? ((latestSummary.grade_distribution.poor / latestSummary.total_records) * 100).toFixed(1) : 0}%
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 추가 통계 */}
+                <div className="mt-6 p-4 bg-white rounded-lg border border-green-100">
+                  <div className="text-sm text-green-800 font-medium mb-2">성능 요약</div>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="text-gray-600">평균 점수:</span>
+                      <span className="ml-2 font-medium text-green-600">{latestSummary.score_stats.average.toFixed(1)}점</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">최고 점수:</span>
+                      <span className="ml-2 font-medium text-green-600">{latestSummary.score_stats.maximum.toFixed(1)}점</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">최저 점수:</span>
+                      <span className="ml-2 font-medium text-red-600">{latestSummary.score_stats.minimum.toFixed(1)}점</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">표준편차:</span>
+                      <span className="ml-2 font-medium text-green-600">±{latestSummary.score_stats.standard_deviation.toFixed(1)}점</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 데이터 커버리지 */}
+                <div className="mt-4 p-4 bg-white rounded-lg border border-green-100">
+                  <div className="text-sm text-green-800 font-medium mb-2">데이터 커버리지</div>
+                  <div className="grid grid-cols-3 gap-4 text-xs">
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-blue-600">
+                        {latestSummary.coverage_distribution.high}
+                      </div>
+                      <div className="text-blue-600">High</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-yellow-600">
+                        {latestSummary.coverage_distribution.medium}
+                      </div>
+                      <div className="text-yellow-600">Medium</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-red-600">
+                        {latestSummary.coverage_distribution.low}
+                      </div>
+                      <div className="text-red-600">Low</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 성능 데이터 테이블 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>최근 3개월 배터리 성능 점수</CardTitle>
+          <CardDescription>
+            총 {latestPagination?.total_count || 0}건의 성능 데이터
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {latestLoading ? (
+            <div className="text-center py-8">데이터를 불러오는 중...</div>
+          ) : (
+            <div className="space-y-4">
+              {latestPerformanceData.map((item, index) => (
+                <Dialog key={`${item.clientid}-latest`}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between h-auto p-4"
+                      onClick={() => setSelectedVehicle(item.clientid)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="text-left">
+                          <div className="font-medium">{item.clientid}</div>
+                          <div className="text-sm text-gray-500">최근 3개월</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <Badge className={getGradeColor(item.scores.total)}>
+                          {getGradeText(item.scores.total)}
+                        </Badge>
+                        <span className="font-semibold text-lg">{item.scores.total}점</span>
+                        <Badge className={item.coverage_grade === 'High' ? 'bg-green-100 text-green-800' : item.coverage_grade === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}>
+                          {item.coverage_grade}
+                        </Badge>
+                      </div>
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="w-[90vw] max-w-[1200px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                        {vehicle.carType} - {vehicle.model} 상세 분석
+                        {item.clientid} - 최근 3개월 상세 분석
                       </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-6">
                       {/* 기본 정보 */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="text-center">
-                          <div className="text-lg font-bold text-gray-700">{vehicle.efficiency}%</div>
-                          <div className="text-xs text-gray-600">배터리 효율</div>
+                          <div className="text-lg font-bold text-gray-700">{item.scores.total}점</div>
+                          <div className="text-xs text-gray-600">총점</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-lg font-bold text-gray-700">{vehicle.carType}</div>
-                          <div className="text-xs text-gray-600">차종</div>
+                          <div className="text-lg font-bold text-gray-700">{item.data_quality.window_days}일</div>
+                          <div className="text-xs text-gray-600">분석 기간</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-lg font-bold text-gray-700">{vehicle.model}</div>
-                          <div className="text-xs text-gray-600">모델</div>
+                          <div className="text-lg font-bold text-gray-700">{item.data_quality.basic_records}</div>
+                          <div className="text-xs text-gray-600">기본 레코드</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-lg font-bold text-gray-700">{vehicle.clientId}</div>
-                          <div className="text-xs text-gray-600">고객 ID</div>
+                          <div className="text-lg font-bold text-gray-700">{item.coverage_grade}</div>
+                          <div className="text-xs text-gray-600">커버리지 등급</div>
                         </div>
                       </div>
 
-                      {/* 그래프 선택 및 표시 */}
-                      <div className="space-y-4">
-                        <div className="flex gap-4">
-                          <Select value={selectedGraph} onValueChange={setSelectedGraph}>
-                            <SelectTrigger className="w-48">
-                              <SelectValue placeholder="그래프 선택" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="driving">주행 그래프</SelectItem>
-                              <SelectItem value="charging">충전 그래프</SelectItem>
-                              <SelectItem value="efficiency">효율 그래프</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex justify-center overflow-x-auto">
-                          <div className="min-w-0">
-                            {renderGraph()}
+                      {/* 점수 분포 차트 */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm">세부 점수 분포</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={[
+                                { name: 'SOH', score: item.scores.soh, color: '#8884d8' },
+                                { name: '셀 밸런스', score: item.scores.cell_balance, color: '#82ca9d' },
+                                { name: '주행 효율', score: item.scores.driving_efficiency, color: '#ffc658' },
+                                { name: '충전 효율', score: item.scores.charging_efficiency, color: '#ff7300' },
+                                { name: '온도 안정성', score: item.scores.temperature_stability, color: '#8dd1e1' },
+                                { name: '충전 습관', score: item.scores.charging_habit, color: '#d084d0' }
+                              ]}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" />
+                                <YAxis />
+                                <Tooltip />
+                                <Bar dataKey="score" fill="#8884d8" />
+                              </BarChart>
+                            </ResponsiveContainer>
                           </div>
-                        </div>
-                      </div>
+                        </CardContent>
+                      </Card>
 
-                      {/* 추가 정보 */}
+                      {/* 상세 지표 */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <Card>
                           <CardHeader>
-                            <CardTitle className="text-sm">배터리 상태 요약</CardTitle>
+                            <CardTitle className="text-sm">배터리 상태 지표</CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                               <div className="flex justify-between">
-                                <span className="text-sm text-gray-600">현재 상태:</span>
-                                <Badge className={vehicle.efficiency >= 85 ? "bg-green-100 text-green-800" : vehicle.efficiency >= 65 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"}>
-                                  {vehicle.efficiency >= 85 ? "우수" : vehicle.efficiency >= 65 ? "보통" : "나쁨"}
-                                </Badge>
+                                <span className="text-sm text-gray-600">평균 SOH:</span>
+                                <span className="font-medium">{item.metrics.avg_soh.toFixed(2)}%</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-sm text-gray-600">효율 점수:</span>
-                                <span className="font-medium">{vehicle.efficiency}점</span>
+                                <span className="text-sm text-gray-600">셀 불균형:</span>
+                                <span className="font-medium">{item.metrics.avg_cell_imbalance.toFixed(3)}V</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">온도 범위:</span>
+                                <span className="font-medium">{item.metrics.avg_temp_range.toFixed(1)}°C</span>
                               </div>
                             </div>
                           </CardContent>
@@ -610,258 +851,125 @@ export default function BatteryPerformanceContent() {
 
                         <Card>
                           <CardHeader>
-                            <CardTitle className="text-sm">권장사항</CardTitle>
+                            <CardTitle className="text-sm">효율성 지표</CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <div className="text-sm text-gray-600">
-                              {vehicle.efficiency >= 85 
-                                ? "배터리 상태가 매우 양호합니다. 현재 사용 패턴을 유지하세요."
-                                : vehicle.efficiency >= 65 
-                                ? "배터리 상태가 보통입니다. 충전 패턴을 개선하면 효율을 높일 수 있습니다."
-                                : "배터리 상태가 좋지 않습니다. 전문가 상담을 권장합니다."
-                              }
+                            <div className="space-y-3">
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">주행 효율:</span>
+                                <span className="font-medium">{item.metrics.avg_soc_per_km.toFixed(4)}%/km</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">완속 충전:</span>
+                                <span className="font-medium">{item.metrics.slow_charge_efficiency.toFixed(1)}%/h</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">급속 충전:</span>
+                                <span className="font-medium">{item.metrics.fast_charge_efficiency.toFixed(1)}%/h</span>
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
                       </div>
+
+                      {/* 데이터 품질 정보 */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm">데이터 품질 정보</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-gray-700">{item.data_quality.soh_records}</div>
+                              <div className="text-xs text-gray-600">SOH 레코드</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-gray-700">{item.data_quality.driving_segments}</div>
+                              <div className="text-xs text-gray-600">주행 세그먼트</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-gray-700">{item.data_quality.charging_segments}</div>
+                              <div className="text-xs text-gray-600">충전 세그먼트</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-gray-700">{item.data_quality.slow_charge_count + item.data_quality.fast_charge_count}</div>
+                              <div className="text-xs text-gray-600">총 충전 횟수</div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* 권장사항 */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm">권장사항</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-sm text-gray-600">
+                            {item.scores.total >= 80 
+                              ? "배터리 상태가 매우 양호합니다. 현재 사용 패턴을 유지하세요."
+                              : item.scores.total >= 60 
+                              ? "배터리 상태가 보통입니다. 충전 패턴을 개선하면 효율을 높일 수 있습니다."
+                              : "배터리 상태가 좋지 않습니다. 전문가 상담을 권장합니다."
+                            }
+                          </div>
+                        </CardContent>
+                      </Card>
                     </div>
                   </DialogContent>
                 </Dialog>
               ))}
-            </CardContent>
-          </Card>
+            </div>
+          )}
 
-          {/* 보통 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">보통</Badge>
-                <span className="text-sm text-muted-foreground">({dummyData.performanceRanking.good.length}대)</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {dummyData.performanceRanking.good.map((vehicle) => (
-                <Dialog key={vehicle.id}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-between"
-                      onClick={() => setSelectedVehicle(vehicle.clientId)}
-                    >
-                      <span>{vehicle.carType} - {vehicle.model}</span>
-                      <span className="text-yellow-600 font-semibold">{vehicle.efficiency}%</span>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="w-[90vw] max-w-[1200px] max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                        {vehicle.carType} - {vehicle.model} 상세 분석
-                      </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-6">
-                      {/* 기본 정보 */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-gray-700">{vehicle.efficiency}%</div>
-                          <div className="text-xs text-gray-600">배터리 효율</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-gray-700">{vehicle.carType}</div>
-                          <div className="text-xs text-gray-600">차종</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-gray-700">{vehicle.model}</div>
-                          <div className="text-xs text-gray-600">모델</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-gray-700">{vehicle.clientId}</div>
-                          <div className="text-xs text-gray-600">고객 ID</div>
-                        </div>
-                      </div>
+          {/* 페이지네이션 */}
+          {latestPagination && latestPagination.total_pages > 1 && (
+            <div className="flex justify-center gap-2 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => loadLatestPerformanceData(Math.max(0, latestPagination.current_offset - latestPagination.current_limit))}
+                disabled={latestPagination.current_offset === 0}
+              >
+                이전
+              </Button>
+              <span className="flex items-center px-4">
+                {Math.floor(latestPagination.current_offset / latestPagination.current_limit) + 1} / {latestPagination.total_pages}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => loadLatestPerformanceData(latestPagination.next_offset || 0)}
+                disabled={!latestPagination.has_more}
+              >
+                다음
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 
-                      {/* 그래프 선택 및 표시 */}
-                      <div className="space-y-4">
-                        <div className="flex gap-4">
-                          <Select value={selectedGraph} onValueChange={setSelectedGraph}>
-                            <SelectTrigger className="w-48">
-                              <SelectValue placeholder="그래프 선택" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="driving">주행 그래프</SelectItem>
-                              <SelectItem value="charging">충전 그래프</SelectItem>
-                              <SelectItem value="efficiency">효율 그래프</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex justify-center overflow-x-auto">
-                          <div className="min-w-0">
-                            {renderGraph()}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 추가 정보 */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="text-sm">배터리 상태 요약</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-2">
-                              <div className="flex justify-between">
-                                <span className="text-sm text-gray-600">현재 상태:</span>
-                                <Badge className={vehicle.efficiency >= 85 ? "bg-green-100 text-green-800" : vehicle.efficiency >= 65 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"}>
-                                  {vehicle.efficiency >= 85 ? "우수" : vehicle.efficiency >= 65 ? "보통" : "나쁨"}
-                                </Badge>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-sm text-gray-600">효율 점수:</span>
-                                <span className="text-yellow-600 font-medium">{vehicle.efficiency}점</span>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="text-sm">권장사항</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="text-sm text-gray-600">
-                              {vehicle.efficiency >= 85 
-                                ? "배터리 상태가 매우 양호합니다. 현재 사용 패턴을 유지하세요."
-                                : vehicle.efficiency >= 65 
-                                ? "배터리 상태가 보통입니다. 충전 패턴을 개선하면 효율을 높일 수 있습니다."
-                                : "배터리 상태가 좋지 않습니다. 전문가 상담을 권장합니다."
-                              }
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* 나쁨 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-red-100 text-red-800 border-red-200">나쁨</Badge>
-                <span className="text-sm text-muted-foreground">({dummyData.performanceRanking.poor.length}대)</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {dummyData.performanceRanking.poor.map((vehicle) => (
-                <Dialog key={vehicle.id}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-between"
-                      onClick={() => setSelectedVehicle(vehicle.clientId)}
-                    >
-                      <span>{vehicle.carType} - {vehicle.model}</span>
-                      <span className="text-red-600 font-semibold">{vehicle.efficiency}%</span>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="w-[90vw] max-w-[1200px] max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                        {vehicle.carType} - {vehicle.model} 상세 분석
-                      </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-6">
-                      {/* 기본 정보 */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-gray-700">{vehicle.efficiency}%</div>
-                          <div className="text-xs text-gray-600">배터리 효율</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-gray-700">{vehicle.carType}</div>
-                          <div className="text-xs text-gray-600">차종</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-gray-700">{vehicle.model}</div>
-                          <div className="text-xs text-gray-600">모델</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-gray-700">{vehicle.clientId}</div>
-                          <div className="text-xs text-gray-600">고객 ID</div>
-                        </div>
-                      </div>
-
-                      {/* 그래프 선택 및 표시 */}
-                      <div className="space-y-4">
-                        <div className="flex gap-4">
-                          <Select value={selectedGraph} onValueChange={setSelectedGraph}>
-                            <SelectTrigger className="w-48">
-                              <SelectValue placeholder="그래프 선택" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="driving">주행 그래프</SelectItem>
-                              <SelectItem value="charging">충전 그래프</SelectItem>
-                              <SelectItem value="efficiency">효율 그래프</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex justify-center overflow-x-auto">
-                          <div className="min-w-0">
-                            {renderGraph()}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 추가 정보 */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="text-sm">배터리 상태 요약</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-2">
-                              <div className="flex justify-between">
-                                <span className="text-sm text-gray-600">현재 상태:</span>
-                                <Badge className={vehicle.efficiency >= 85 ? "bg-green-100 text-green-800" : vehicle.efficiency >= 65 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"}>
-                                  {vehicle.efficiency >= 85 ? "우수" : vehicle.efficiency >= 65 ? "보통" : "나쁨"}
-                                </Badge>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-sm text-gray-600">효율 점수:</span>
-                                <span className="text-red-600 font-medium">{vehicle.efficiency}점</span>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="text-sm">권장사항</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="text-sm text-gray-600">
-                              {vehicle.efficiency >= 85 
-                                ? "배터리 상태가 매우 양호합니다. 현재 사용 패턴을 유지하세요."
-                                : vehicle.efficiency >= 65 
-                                ? "배터리 상태가 보통입니다. 충전 패턴을 개선하면 효율을 높일 수 있습니다."
-                                : "배터리 상태가 좋지 않습니다. 전문가 상담을 권장합니다."
-                              }
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+  return (
+    <div className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="overall">종합점수</TabsTrigger>
+          <TabsTrigger value="mileage">주행거리별</TabsTrigger>
+          <TabsTrigger value="threeMonth">3개월 성능</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overall" className="mt-6">
+          {renderOverallTab()}
+        </TabsContent>
+        
+        <TabsContent value="mileage" className="mt-6">
+          {renderMileageTab()}
+        </TabsContent>
+        
+        <TabsContent value="threeMonth" className="mt-6">
+          {renderThreeMonthTab()}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
