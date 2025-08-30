@@ -1,15 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
-import { Calculator, Trophy, TrendingUp, Award, Upload, BarChart3 } from "lucide-react"
+import { Calculator, Trophy, TrendingUp, Award, Upload, BarChart3, Battery, Gauge, Activity, MapPin } from "lucide-react"
 import {
   RadarChart,
   PolarGrid,
@@ -23,139 +22,161 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts"
-
-// 기준 차량 데이터 (비교 대상)
-const referenceVehicles = [
-  {
-    id: 1,
-    model: "Tesla Model S",
-    brand: "Tesla",
-    batteryCapacity: 100,
-    range: 652,
-    chargingSpeed: 250,
-    efficiency: 4.8,
-    performanceScore: 95,
-    category: "luxury",
-  },
-  {
-    id: 2,
-    model: "현대 아이오닉 6",
-    brand: "현대",
-    batteryCapacity: 77.4,
-    range: 614,
-    chargingSpeed: 235,
-    efficiency: 5.1,
-    performanceScore: 88,
-    category: "premium",
-  },
-  {
-    id: 3,
-    model: "기아 EV6",
-    brand: "기아",
-    batteryCapacity: 77.4,
-    range: 528,
-    chargingSpeed: 240,
-    efficiency: 4.2,
-    performanceScore: 85,
-    category: "premium",
-  },
-  {
-    id: 4,
-    model: "BMW iX",
-    brand: "BMW",
-    batteryCapacity: 111.5,
-    range: 630,
-    chargingSpeed: 195,
-    efficiency: 4.1,
-    performanceScore: 82,
-    category: "luxury",
-  },
-  {
-    id: 5,
-    model: "폭스바겐 ID.4",
-    brand: "폭스바겐",
-    batteryCapacity: 82,
-    range: 520,
-    chargingSpeed: 135,
-    efficiency: 3.8,
-    performanceScore: 75,
-    category: "standard",
-  },
-]
+import { OverallPerformanceDistribution } from "@/lib/api"
 
 interface UserVehicleData {
-  model: string
-  brand: string
-  batteryCapacity: number
-  totalMileage: number
-  averageEfficiency: number
-  chargingSpeed: number
-  batteryHealth: number
-  purchaseYear: number
-  category: string
+  cell_balance_score: number
+  soc_stability_score: number
+  thermal_performance_score: number
+  efficiency_score: number
+  total_distance: number
+  avg_operating_temperature: number
+  total_segments: number
 }
 
 export function PerformanceRankingContent() {
   const [activeTab, setActiveTab] = useState("input")
   const [userVehicle, setUserVehicle] = useState<UserVehicleData>({
-    model: "",
-    brand: "",
-    batteryCapacity: 0,
-    totalMileage: 0,
-    averageEfficiency: 0,
-    chargingSpeed: 0,
-    batteryHealth: 100,
-    purchaseYear: new Date().getFullYear(),
-    category: "",
+    cell_balance_score: 0,
+    soc_stability_score: 0,
+    thermal_performance_score: 0,
+    efficiency_score: 0,
+    total_distance: 0,
+    avg_operating_temperature: 0,
+    total_segments: 0,
   })
   const [analysisResult, setAnalysisResult] = useState<any>(null)
+  const [overallDistribution, setOverallDistribution] = useState<OverallPerformanceDistribution | null>(null)
+  const [vehiclesByGrade, setVehiclesByGrade] = useState<{
+    [grade: string]: {
+      data: any[];
+      pagination: {
+        total_count: number;
+        current_offset: number;
+        current_limit: number;
+        has_more: boolean;
+        next_offset: number | null;
+      };
+    };
+  }>({})
+  const [loading, setLoading] = useState(false)
+
+  // 전체 성능 분포 데이터 가져오기
+  useEffect(() => {
+    const fetchOverallDistribution = () => {
+      setLoading(true)
+      
+      // 더미 데이터 사용
+      const dummyDistribution = {
+        total_vehicles: 7,
+        distribution: {
+          '우수': { count: 3, percentage: 42.9 },
+          '보통': { count: 2, percentage: 28.6 },
+          '나쁨': { count: 2, percentage: 28.6 }
+        }
+      }
+      setOverallDistribution(dummyDistribution)
+      
+      // 더미 차량 데이터
+      const dummyVehicles = {
+        '우수': {
+          data: [
+            { clientid: 'client001', model_name: 'Model X', performance_score: 95, total_distance: 15000, avg_operating_temperature: 25, total_segments: 120 },
+            { clientid: 'client002', model_name: 'Model S', performance_score: 92, total_distance: 12000, avg_operating_temperature: 26, total_segments: 100 },
+            { clientid: 'client003', model_name: 'Model Y', performance_score: 90, total_distance: 18000, avg_operating_temperature: 24, total_segments: 150 }
+          ],
+          pagination: { total_count: 3, current_offset: 0, current_limit: 100, has_more: false, next_offset: null }
+        },
+        '보통': {
+          data: [
+            { clientid: 'client004', model_name: 'Model 3', performance_score: 78, total_distance: 8000, avg_operating_temperature: 28, total_segments: 80 },
+            { clientid: 'client005', model_name: 'Model E', performance_score: 75, total_distance: 6000, avg_operating_temperature: 29, total_segments: 60 }
+          ],
+          pagination: { total_count: 2, current_offset: 0, current_limit: 100, has_more: false, next_offset: null }
+        },
+        '나쁨': {
+          data: [
+            { clientid: 'client006', model_name: 'Model W', performance_score: 45, total_distance: 3000, avg_operating_temperature: 32, total_segments: 30 },
+            { clientid: 'client007', model_name: 'Model Z', performance_score: 52, total_distance: 5000, avg_operating_temperature: 31, total_segments: 50 }
+          ],
+          pagination: { total_count: 2, current_offset: 0, current_limit: 100, has_more: false, next_offset: null }
+        }
+      }
+      setVehiclesByGrade(dummyVehicles)
+      setLoading(false)
+    }
+
+    fetchOverallDistribution()
+  }, [])
 
   const calculatePerformanceScore = (vehicle: UserVehicleData) => {
-    // 성능 점수 계산 로직
-    const efficiencyScore = Math.min((vehicle.averageEfficiency / 5.0) * 25, 25)
-    const capacityScore = Math.min((vehicle.batteryCapacity / 100) * 20, 20)
-    const chargingScore = Math.min((vehicle.chargingSpeed / 250) * 20, 20)
-    const healthScore = (vehicle.batteryHealth / 100) * 20
-    const ageScore = Math.max(15 - (new Date().getFullYear() - vehicle.purchaseYear) * 2, 5)
+    // 4개 영역별 점수 합계 (각 25점 만점)
+    return vehicle.cell_balance_score + vehicle.soc_stability_score + 
+           vehicle.thermal_performance_score + vehicle.efficiency_score
+  }
 
-    return Math.round(efficiencyScore + capacityScore + chargingScore + healthScore + ageScore)
+  const predictGrade = (score: number) => {
+    if (score >= 80) return '우수'
+    if (score >= 60) return '보통'
+    return '나쁨'
   }
 
   const analyzePerformance = () => {
     const performanceScore = calculatePerformanceScore(userVehicle)
+    const predictedGrade = predictGrade(performanceScore)
 
-    // 순위 계산
-    const allVehicles = [...referenceVehicles, { ...userVehicle, performanceScore }]
-    const sortedVehicles = allVehicles.sort((a, b) => b.performanceScore - a.performanceScore)
-    const userRank = sortedVehicles.findIndex((v) => v.model === userVehicle.model) + 1
-
-    // 카테고리별 순위
-    const categoryVehicles = allVehicles.filter((v) => v.category === userVehicle.category)
-    const sortedCategoryVehicles = categoryVehicles.sort((a, b) => b.performanceScore - a.performanceScore)
-    const categoryRank = sortedCategoryVehicles.findIndex((v) => v.model === userVehicle.model) + 1
+    // 전체 차량 데이터에서 순위 계산
+    const allVehicles = [
+      ...(vehiclesByGrade['우수']?.data || []),
+      ...(vehiclesByGrade['보통']?.data || []),
+      ...(vehiclesByGrade['나쁨']?.data || [])
+    ]
+    
+    // 성능 점수로 정렬
+    const sortedVehicles = allVehicles.sort((a, b) => b.performance_score - a.performance_score)
+    
+    // 현재 입력된 점수의 순위 찾기
+    let rank = 1
+    for (const vehicle of sortedVehicles) {
+      if (vehicle.performance_score < performanceScore) break
+      rank++
+    }
+    
+    // 등급별 분포 계산
+    const gradeDistribution = {
+      '우수': vehiclesByGrade['우수']?.pagination.total_count || 0,
+      '보통': vehiclesByGrade['보통']?.pagination.total_count || 0,
+      '나쁨': vehiclesByGrade['나쁨']?.pagination.total_count || 0
+    }
+    
+    const totalVehicles = Object.values(gradeDistribution).reduce((sum, count) => sum + count, 0)
+    const percentile = totalVehicles > 0 ? Math.round(((totalVehicles - rank + 1) / totalVehicles) * 100) : 0
 
     // 레이더 차트 데이터
     const radarData = [
-      { subject: "효율성", userScore: Math.min((userVehicle.averageEfficiency / 5.0) * 100, 100), avgScore: 80 },
-      { subject: "배터리 용량", userScore: Math.min((userVehicle.batteryCapacity / 100) * 100, 100), avgScore: 75 },
-      { subject: "충전 속도", userScore: Math.min((userVehicle.chargingSpeed / 250) * 100, 100), avgScore: 70 },
-      { subject: "배터리 건강도", userScore: userVehicle.batteryHealth, avgScore: 85 },
-      {
-        subject: "연식",
-        userScore: Math.max(100 - (new Date().getFullYear() - userVehicle.purchaseYear) * 10, 20),
-        avgScore: 60,
-      },
+      { subject: "셀 밸런스", userScore: userVehicle.cell_balance_score, maxScore: 25 },
+      { subject: "SOC 안정성", userScore: userVehicle.soc_stability_score, maxScore: 25 },
+      { subject: "열 성능", userScore: userVehicle.thermal_performance_score, maxScore: 25 },
+      { subject: "에너지 효율", userScore: userVehicle.efficiency_score, maxScore: 25 },
     ]
 
     setAnalysisResult({
       performanceScore,
-      overallRank: userRank,
-      totalVehicles: allVehicles.length,
-      categoryRank,
-      totalCategoryVehicles: categoryVehicles.length,
+      predictedGrade,
+      overallRank: rank,
+      totalVehicles,
+      percentile,
+      gradeDistribution,
       radarData,
-      comparison: sortedVehicles.slice(0, 5),
+      comparison: [
+        { clientid: 'user', model_name: '내 차량', performance_score: performanceScore, car_type: '사용자 입력' },
+        ...sortedVehicles.slice(0, 9) // 상위 9개 차량 + 사용자 차량 = 총 10개
+      ],
+      userVehicle
     })
 
     setActiveTab("result")
@@ -171,17 +192,25 @@ export function PerformanceRankingContent() {
   const getRankBadge = (rank: number, total: number) => {
     const percentage = (rank / total) * 100
     if (percentage <= 20)
-      return <Badge className="bg-chart-3/10 text-chart-3 border-chart-3/20">상위 {percentage.toFixed(0)}%</Badge>
+      return <Badge className="bg-green-100 text-green-800 border-green-200">상위 {percentage.toFixed(0)}%</Badge>
     if (percentage <= 50)
-      return <Badge className="bg-chart-2/10 text-chart-2 border-chart-2/20">상위 {percentage.toFixed(0)}%</Badge>
-    return <Badge className="bg-chart-4/10 text-chart-4 border-chart-4/20">상위 {percentage.toFixed(0)}%</Badge>
+      return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">상위 {percentage.toFixed(0)}%</Badge>
+    return <Badge className="bg-red-100 text-red-800 border-red-200">상위 {percentage.toFixed(0)}%</Badge>
   }
 
   const getScoreColor = (score: number) => {
-    if (score >= 85) return "text-chart-3"
-    if (score >= 70) return "text-chart-2"
-    if (score >= 55) return "text-chart-4"
-    return "text-chart-5"
+    if (score >= 80) return "text-green-600"
+    if (score >= 60) return "text-yellow-600"
+    return "text-red-600"
+  }
+
+  const getGradeColor = (grade: string) => {
+    switch (grade) {
+      case '우수': return 'bg-green-100 text-green-800 border-green-200'
+      case '보통': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      case '나쁨': return 'bg-red-100 text-red-800 border-red-200'
+      default: return 'bg-gray-100 text-gray-800 border-gray-200'
+    }
   }
 
   return (
@@ -212,110 +241,78 @@ export function PerformanceRankingContent() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="brand">브랜드</Label>
+                    <Label htmlFor="cellBalanceScore">셀 밸런스 점수</Label>
                     <Input
-                      id="brand"
-                      placeholder="예: Tesla, 현대, 기아"
-                      value={userVehicle.brand}
-                      onChange={(e) => handleInputChange("brand", e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="model">모델명</Label>
-                    <Input
-                      id="model"
-                      placeholder="예: Model 3, 아이오닉 5, EV6"
-                      value={userVehicle.model}
-                      onChange={(e) => handleInputChange("model", e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="category">차량 등급</Label>
-                    <Select
-                      value={userVehicle.category}
-                      onValueChange={(value) => handleInputChange("category", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="차량 등급 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="standard">스탠다드</SelectItem>
-                        <SelectItem value="premium">프리미엄</SelectItem>
-                        <SelectItem value="luxury">럭셔리</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="purchaseYear">구매 연도</Label>
-                    <Input
-                      id="purchaseYear"
+                      id="cellBalanceScore"
                       type="number"
-                      placeholder="2024"
-                      value={userVehicle.purchaseYear || ""}
-                      onChange={(e) => handleInputChange("purchaseYear", Number.parseInt(e.target.value) || 0)}
+                      placeholder="0-25"
+                      value={userVehicle.cell_balance_score || ""}
+                      onChange={(e) => handleInputChange("cell_balance_score", Number.parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="socStabilityScore">SOC 안정성 점수</Label>
+                    <Input
+                      id="socStabilityScore"
+                      type="number"
+                      placeholder="0-25"
+                      value={userVehicle.soc_stability_score || ""}
+                      onChange={(e) => handleInputChange("soc_stability_score", Number.parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="thermalPerformanceScore">열 성능 점수</Label>
+                    <Input
+                      id="thermalPerformanceScore"
+                      type="number"
+                      placeholder="0-25"
+                      value={userVehicle.thermal_performance_score || ""}
+                      onChange={(e) => handleInputChange("thermal_performance_score", Number.parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="efficiencyScore">에너지 효율 점수</Label>
+                    <Input
+                      id="efficiencyScore"
+                      type="number"
+                      placeholder="0-25"
+                      value={userVehicle.efficiency_score || ""}
+                      onChange={(e) => handleInputChange("efficiency_score", Number.parseInt(e.target.value) || 0)}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="batteryCapacity">배터리 용량 (kWh)</Label>
+                    <Label htmlFor="totalDistance">총 주행거리 (km)</Label>
                     <Input
-                      id="batteryCapacity"
+                      id="totalDistance"
                       type="number"
-                      placeholder="77.4"
-                      value={userVehicle.batteryCapacity || ""}
-                      onChange={(e) => handleInputChange("batteryCapacity", Number.parseFloat(e.target.value) || 0)}
+                      placeholder="10000"
+                      value={userVehicle.total_distance || ""}
+                      onChange={(e) => handleInputChange("total_distance", Number.parseInt(e.target.value) || 0)}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="totalMileage">총 주행거리 (km)</Label>
+                    <Label htmlFor="avgOperatingTemperature">평균 운전 온도 (°C)</Label>
                     <Input
-                      id="totalMileage"
+                      id="avgOperatingTemperature"
                       type="number"
-                      placeholder="25000"
-                      value={userVehicle.totalMileage || ""}
-                      onChange={(e) => handleInputChange("totalMileage", Number.parseInt(e.target.value) || 0)}
+                      placeholder="20"
+                      value={userVehicle.avg_operating_temperature || ""}
+                      onChange={(e) => handleInputChange("avg_operating_temperature", Number.parseInt(e.target.value) || 0)}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="averageEfficiency">평균 효율 (km/kWh)</Label>
+                    <Label htmlFor="totalSegments">총 세그먼트 수</Label>
                     <Input
-                      id="averageEfficiency"
+                      id="totalSegments"
                       type="number"
-                      step="0.1"
-                      placeholder="4.2"
-                      value={userVehicle.averageEfficiency || ""}
-                      onChange={(e) => handleInputChange("averageEfficiency", Number.parseFloat(e.target.value) || 0)}
+                      placeholder="100"
+                      value={userVehicle.total_segments || ""}
+                      onChange={(e) => handleInputChange("total_segments", Number.parseInt(e.target.value) || 0)}
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="chargingSpeed">최대 충전속도 (kW)</Label>
-                    <Input
-                      id="chargingSpeed"
-                      type="number"
-                      placeholder="240"
-                      value={userVehicle.chargingSpeed || ""}
-                      onChange={(e) => handleInputChange("chargingSpeed", Number.parseInt(e.target.value) || 0)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="batteryHealth">배터리 건강도 (%)</Label>
-                <div className="flex items-center gap-4 mt-2">
-                  <Input
-                    id="batteryHealth"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={userVehicle.batteryHealth}
-                    onChange={(e) => handleInputChange("batteryHealth", Number.parseInt(e.target.value) || 100)}
-                    className="max-w-24"
-                  />
-                  <Progress value={userVehicle.batteryHealth} className="flex-1" />
-                  <span className="text-sm font-medium">{userVehicle.batteryHealth}%</span>
                 </div>
               </div>
 
@@ -323,7 +320,7 @@ export function PerformanceRankingContent() {
                 onClick={analyzePerformance}
                 className="w-full"
                 size="lg"
-                disabled={!userVehicle.model || !userVehicle.brand || !userVehicle.category}
+                disabled={loading}
               >
                 <Calculator className="h-4 w-4 mr-2" />
                 성능 분석 시작
@@ -358,13 +355,16 @@ export function PerformanceRankingContent() {
                 <Card>
                   <CardHeader className="text-center">
                     <Award className="h-8 w-8 mx-auto text-accent mb-2" />
-                    <CardTitle>카테고리 순위</CardTitle>
+                    <CardTitle>예측 등급</CardTitle>
                   </CardHeader>
                   <CardContent className="text-center">
-                    <div className="text-3xl font-bold mb-2 text-chart-2">{analysisResult.categoryRank}위</div>
+                    <div className={`text-3xl font-bold mb-2 ${getGradeColor(analysisResult.predictedGrade)}`}>
+                      {analysisResult.predictedGrade}
+                    </div>
                     <div className="space-y-2">
-                      <Badge variant="outline">{userVehicle.category} 등급</Badge>
-                      <p className="text-sm text-muted-foreground">동급 {analysisResult.totalCategoryVehicles}대 중</p>
+                      <p className="text-sm text-muted-foreground">
+                        현재 입력된 점수로 예측된 등급입니다.
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
@@ -372,31 +372,28 @@ export function PerformanceRankingContent() {
                 <Card>
                   <CardHeader className="text-center">
                     <BarChart3 className="h-8 w-8 mx-auto text-accent mb-2" />
-                    <CardTitle>성능 등급</CardTitle>
+                    <CardTitle>성능 등급 분포</CardTitle>
                   </CardHeader>
                   <CardContent className="text-center">
-                    <div className="text-2xl font-bold mb-2">
-                      {analysisResult.performanceScore >= 85
-                        ? "A"
-                        : analysisResult.performanceScore >= 70
-                          ? "B"
-                          : analysisResult.performanceScore >= 55
-                            ? "C"
-                            : "D"}
-                      등급
-                    </div>
-                    <div className="space-y-2">
-                      <Progress value={analysisResult.performanceScore} className="w-full" />
-                      <p className="text-sm text-muted-foreground">
-                        {analysisResult.performanceScore >= 85
-                          ? "우수한"
-                          : analysisResult.performanceScore >= 70
-                            ? "양호한"
-                            : analysisResult.performanceScore >= 55
-                              ? "보통의"
-                              : "개선이 필요한"}{" "}
-                        성능
-                      </p>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={Object.entries(analysisResult.gradeDistribution).map(([grade, count]) => ({ name: grade, value: count }))}
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={100}
+                          fill="#8884d8"
+                          label
+                        >
+                          {Object.entries(analysisResult.gradeDistribution).map(([grade, count]) => (
+                            <Cell key={grade} fill={getGradeColor(grade)} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="mt-4 text-sm text-muted-foreground">
+                      전체 {analysisResult.totalVehicles}대 중 현재 차량은 {analysisResult.percentile}% 순위입니다.
                     </div>
                   </CardContent>
                 </Card>
@@ -414,7 +411,7 @@ export function PerformanceRankingContent() {
                       <RadarChart data={analysisResult.radarData}>
                         <PolarGrid />
                         <PolarAngleAxis dataKey="subject" />
-                        <PolarRadiusAxis angle={90} domain={[0, 100]} />
+                        <PolarRadiusAxis angle={90} domain={[0, 25]} />
                         <Radar
                           name="내 차량"
                           dataKey="userScore"
@@ -424,8 +421,8 @@ export function PerformanceRankingContent() {
                           strokeWidth={2}
                         />
                         <Radar
-                          name="평균"
-                          dataKey="avgScore"
+                          name="최고 평균"
+                          dataKey="maxScore"
                           stroke="var(--chart-2)"
                           fill="var(--chart-2)"
                           fillOpacity={0.1}
@@ -441,7 +438,7 @@ export function PerformanceRankingContent() {
                 <Card>
                   <CardHeader>
                     <CardTitle>경쟁 차량 비교</CardTitle>
-                    <CardDescription>상위 5개 차량과의 성능 비교</CardDescription>
+                    <CardDescription>상위 10개 차량과의 성능 비교</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
@@ -451,10 +448,8 @@ export function PerformanceRankingContent() {
                         <YAxis />
                         <Tooltip />
                         <Bar
-                          dataKey="performanceScore"
-                          fill={(entry: any) =>
-                            entry.model === userVehicle.model ? "var(--chart-1)" : "var(--chart-2)"
-                          }
+                          dataKey="performance_score"
+                          fill="#8884d8"
                         />
                       </BarChart>
                     </ResponsiveContainer>
@@ -471,8 +466,8 @@ export function PerformanceRankingContent() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {analysisResult.radarData.map((item: any, index: number) => {
-                      const improvement = item.avgScore - item.userScore
-                      if (improvement > 10) {
+                      const improvement = item.maxScore - item.userScore
+                      if (improvement > 5) { // 개선 기준을 5점으로 설정
                         return (
                           <div key={index} className="p-4 border border-border rounded-lg">
                             <div className="flex items-center justify-between mb-2">
@@ -480,14 +475,13 @@ export function PerformanceRankingContent() {
                               <TrendingUp className="h-4 w-4 text-chart-4" />
                             </div>
                             <p className="text-sm text-muted-foreground mb-2">
-                              현재: {item.userScore.toFixed(1)}점 → 목표: {item.avgScore.toFixed(1)}점
+                              현재: {item.userScore.toFixed(1)}점 → 목표: {item.maxScore.toFixed(1)}점
                             </p>
                             <p className="text-sm">
-                              {item.subject === "효율성" && "에코 모드 사용과 부드러운 운전으로 효율을 개선하세요"}
-                              {item.subject === "배터리 용량" && "배터리 관리 시스템을 점검하고 정기 진단을 받으세요"}
-                              {item.subject === "충전 속도" && "충전 포트와 케이블 상태를 확인하세요"}
-                              {item.subject === "배터리 건강도" && "적정 충전 범위(20-80%)를 유지하세요"}
-                              {item.subject === "연식" && "최신 소프트웨어 업데이트를 확인하세요"}
+                              {item.subject === "셀 밸런스" && "배터리 셀 간 전압 차이를 줄이고, 셀 간 온도 차이를 최소화하세요"}
+                              {item.subject === "SOC 안정성" && "배터리 관리 시스템을 점검하고 정기 진단을 받으세요"}
+                              {item.subject === "열 성능" && "배터리 쿨링 시스템을 점검하고 정기 점검을 받으세요"}
+                              {item.subject === "에너지 효율" && "에코 모드 사용과 부드러운 운전으로 효율을 개선하세요"}
                             </p>
                           </div>
                         )

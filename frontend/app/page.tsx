@@ -1,7 +1,7 @@
 import { Sidebar } from "@/components/sidebar"
 import { DashboardOverview } from "@/components/dashboard-overview"
 
-export default function HomePage() {
+export default function DashboardPage() {
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
