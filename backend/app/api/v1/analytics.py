@@ -36,53 +36,37 @@ async def get_bw_dashboard_status(db: asyncpg.Connection = Depends(get_db)):
     """BW 대시보드 관련 테이블 및 뷰 상태 확인"""
     return await analytics_crud.get_bw_dashboard_status(db)
 
-# 배터리 성능 관련 API 엔드포인트
-@router.get("/battery-performance")
-async def get_battery_performance_by_mileage(
-    limit: int = Query(50, ge=1, le=100, description="페이지당 항목 수"),
-    offset: int = Query(0, ge=0, description="페이지 오프셋"),
+
+
+@router.get("/vehicle/{clientid}/segments")
+async def get_vehicle_segments(
+    clientid: str,
+    data_type: str = Query("mileage", description="데이터 타입: mileage 또는 soc"),
     db: asyncpg.Connection = Depends(get_db)
 ):
-    """주행거리 구간별 배터리 성능 점수 조회"""
-    return await analytics_crud.get_battery_performance_by_mileage(db, limit, offset)
+    """특정 차량의 구간별 데이터 조회 (마일리지 또는 SOC 기준)"""
+    return await analytics_crud.get_vehicle_segments_data(db, clientid, data_type)
 
-@router.get("/battery-performance/summary")
-async def get_battery_performance_summary(db: asyncpg.Connection = Depends(get_db)):
-    """배터리 성능 요약 통계 조회"""
-    return await analytics_crud.get_battery_performance_summary(db)
-
-@router.get("/battery-performance/mileage-segments")
-async def get_available_mileage_segments(db: asyncpg.Connection = Depends(get_db)):
-    """사용 가능한 주행거리 구간 목록 조회"""
-    return await analytics_crud.get_available_mileage_segments(db)
-
-@router.get("/battery-performance/latest")
-async def get_battery_performance_latest(
-    limit: int = Query(50, ge=1, le=100, description="페이지당 항목 수"),
-    offset: int = Query(0, ge=0, description="페이지 오프셋"),
+@router.get("/vehicle/{clientid}/summary")
+async def get_vehicle_summary_info(
+    clientid: str,
     db: asyncpg.Connection = Depends(get_db)
 ):
-    """최근 3개월 배터리 성능 점수 조회"""
-    return await analytics_crud.get_battery_performance_latest(db, limit, offset)
+    """특정 차량의 요약 정보 조회"""
+    return await analytics_crud.get_vehicle_summary(db, clientid)
 
-@router.get("/battery-performance/latest/summary")
-async def get_latest_performance_summary(db: asyncpg.Connection = Depends(get_db)):
-    """최근 3개월 배터리 성능 요약 통계 조회"""
-    return await analytics_crud.get_latest_performance_summary(db)
-
-@router.get("/battery-performance/rankings")
-async def get_battery_performance_rankings(
-    limit: int = Query(50, ge=1, le=100, description="페이지당 항목 수"),
+@router.get("/battery-performance/ranking")
+async def get_battery_performance_ranking(
+    limit: int = Query(50, ge=1, le=1000, description="페이지당 항목 수"),
     offset: int = Query(0, ge=0, description="페이지 오프셋"),
     db: asyncpg.Connection = Depends(get_db)
 ):
     """배터리 성능 랭킹 조회"""
-    return await analytics_crud.get_battery_performance_rankings(db, limit, offset)
+    return await analytics_crud.get_battery_performance_ranking(db, limit, offset)
 
-@router.get("/battery-performance/comparison/{clientid}")
-async def get_battery_performance_comparison(
-    clientid: str,
+@router.get("/battery-performance/ranking/summary")
+async def get_battery_performance_ranking_summary(
     db: asyncpg.Connection = Depends(get_db)
 ):
-    """특정 클라이언트의 배터리 성능 비교 데이터 조회"""
-    return await analytics_crud.get_battery_performance_comparison(db, clientid)
+    """배터리 성능 랭킹 요약 통계 조회"""
+    return await analytics_crud.get_battery_performance_ranking_summary(db)

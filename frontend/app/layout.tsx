@@ -22,7 +22,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className={`${dmSans.variable} antialiased`}>
-      <body className="font-sans">{children}</body>
+      <body className="font-sans">
+        {children}
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+      </body>
     </html>
   )
 }

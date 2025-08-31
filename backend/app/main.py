@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api.v1 import vehicles, performance, analytics
+from .api.v1 import vehicles, performance, analytics, baas
 
 app = FastAPI(
     title="BAAS Analysis API",
@@ -11,7 +11,7 @@ app = FastAPI(
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"],  # Frontend 주소
+    allow_origins=[ "http://localhost:3004", "http://127.0.0.1:3004"],  # Frontend 주소
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -21,6 +21,7 @@ app.add_middleware(
 app.include_router(vehicles.router, prefix="/api/v1")
 app.include_router(performance.router, prefix="/api/v1")
 app.include_router(analytics.router, prefix="/api/v1")
+app.include_router(baas.router, prefix="/api/v1")
 
 @app.get("/")
 def read_root():

@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Car, TrendingUp, BarChart3, Home, Activity } from "lucide-react"
+import { Home, MessageSquare, Battery } from "lucide-react"
 
 const navigation = [
   {
@@ -14,22 +14,12 @@ const navigation = [
   {
     name: "배터리 성능 평가",
     href: "/battery-performance",
-    icon: Activity,
+    icon: Battery,
   },
   {
-    name: "주행 특성 분석",
-    href: "/driving-analysis",
-    icon: Car,
-  },
-  {
-    name: "배터리 효율 분석",
-    href: "/efficiency-analysis",
-    icon: TrendingUp,
-  },
-  {
-    name: "성능 순위 분석",
-    href: "/performance-ranking",
-    icon: BarChart3,
+    name: "EV Chat",
+    href: "/ev-chat",
+    icon: MessageSquare,
   },
 ]
 

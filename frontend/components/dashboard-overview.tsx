@@ -26,6 +26,8 @@ import {
   Cell
 } from "recharts"
 
+import { VehicleDetailModal } from "./vehicle-detail-modal"
+
 // BW 대시보드 데이터 타입 정의
 interface BWDashboardData {
   // === 데이터 수집 현황 ===
@@ -102,6 +104,10 @@ export function DashboardOverview() {
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const itemsPerPage = 15
+
+  // 차량 상세 모달 상태
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
+  const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false)
 
   // BW 대시보드 데이터 가져오기
   useEffect(() => {
@@ -224,6 +230,18 @@ export function DashboardOverview() {
         <p className="text-gray-600 mb-4">대시보드 데이터를 불러올 수 없습니다.</p>
       </div>
     )
+  }
+
+  // 차량 행 클릭 핸들러
+  const handleVehicleRowClick = (clientid: string) => {
+    setSelectedVehicleId(clientid)
+    setIsVehicleModalOpen(true)
+  }
+
+  // 차량 모달 닫기 핸들러
+  const handleVehicleModalClose = () => {
+    setIsVehicleModalOpen(false)
+    setSelectedVehicleId(null)
   }
 
   return (
@@ -480,7 +498,11 @@ export function DashboardOverview() {
                   </thead>
                   <tbody>
                     {clientVehicles.map((vehicle, index) => (
-                      <tr key={index} className="border-b hover:bg-gray-50">
+                      <tr 
+                        key={index} 
+                        className="border-b hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() => handleVehicleRowClick(vehicle.clientid)}
+                      >
                         <td className="p-3 font-medium text-blue-600">
                           {vehicle.clientid}
                         </td>
@@ -581,6 +603,15 @@ export function DashboardOverview() {
           )}
         </CardContent>
       </Card>
+
+      {/* 차량 상세 정보 모달 */}
+      {selectedVehicleId && (
+        <VehicleDetailModal
+          isOpen={isVehicleModalOpen}
+          onClose={handleVehicleModalClose}
+          clientid={selectedVehicleId}
+        />
+      )}
     </div>
   )
 }
