@@ -13,14 +13,9 @@ export function EvChatContent() {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [useOpenAI, setUseOpenAI] = useState(false)
   const [selectedModel, setSelectedModel] = useState("gpt-oss:20b")
 
   // 모델 목록
-  const openaiModels = useMemo(
-    () => ["gpt-3.5-turbo", "gpt-4o", "gpt-4o-mini"],
-    []
-  )
   const ollamaModels = useMemo(
     () => [
       "gpt-oss:20b",
@@ -33,12 +28,6 @@ export function EvChatContent() {
     ],
     []
   )
-
-  // Provider 전환 시 기본 모델 동기화
-  const handleProviderChange = (isOpenAI: boolean) => {
-    setUseOpenAI(isOpenAI)
-    setSelectedModel(isOpenAI ? "gpt-3.5-turbo" : "gpt-oss:20b")
-  }
 
   // 메시지 전송
   const handleSendMessage = async () => {
@@ -64,9 +53,9 @@ export function EvChatContent() {
       const formData = new FormData()
       formData.append('message', content)
       formData.append('model', selectedModel)
-      formData.append('provider', useOpenAI ? 'openai' : 'ollama')
+      formData.append('provider', 'ollama')
       
-      const response = await fetch('/api/v1/baas/chat', {
+      const response = await fetch('/api/v1/ev-chat/chat', {
         method: 'POST',
         body: formData,
       })
@@ -86,7 +75,7 @@ export function EvChatContent() {
         timestamp: new Date(),
         chatId: "ev-chat",
         modelInfo: {
-          provider: useOpenAI ? "OpenAI" : "Ollama",
+          provider: "Ollama",
           model: selectedModel
         }
       }
@@ -174,62 +163,57 @@ export function EvChatContent() {
   }
 
   return (
-    // 3행 grid: 헤더 / 스크롤영역 / 입력영역 — 여백 없이 정확히 맞물리게
-    <div className="min-h-screen grid grid-rows-[auto,1fr,auto]">
-      {/* 상단 설정 바 */}
-      <div className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50/90 backdrop-blur px-6 py-3">
-        <div className="max-w-3xl mx-auto">
+    // 3행 grid: 헤더(고정) / 스크롤영역(가변) / 입력영역(고정) — 화면 전체 높이 사용
+    <div className="h-screen flex flex-col">
+      {/* 상단 설정 바 - 고정 높이 */}
+      <div className="flex-shrink-0 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4">
+        <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-gray-700">🤖 Provider</span>
-                <div className="flex items-center bg-white rounded-lg p-1 border border-gray-200 shadow-sm">
-                  <button
-                    onClick={() => handleProviderChange(false)}
-                    className={cn(
-                      "px-3 py-1 text-sm rounded-md transition-colors font-medium",
-                      !useOpenAI ? "bg-blue-600 text-white shadow-sm" : "text-gray-700 hover:bg-gray-100"
-                    )}
-                  >
-                    Ollama
-                  </button>
-                  <button
-                    onClick={() => handleProviderChange(true)}
-                    className={cn(
-                      "px-3 py-1 text-sm rounded-md transition-colors font-medium",
-                      useOpenAI ? "bg-blue-600 text-white shadow-sm" : "text-gray-700 hover:bg-gray-100"
-                    )}
-                  >
-                    OpenAI
-                  </button>
+            <div className="flex items-center gap-8">
+              {/* AI 모델 선택 */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🤖</span>
+                  <span className="text-sm font-semibold text-gray-700">AI 모델</span>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-gray-700">🎯 Model</span>
                 <select
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
-                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm"
+                  className="px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm hover:shadow-md transition-shadow min-w-[200px]"
                 >
-                  {(useOpenAI ? openaiModels : ollamaModels).map((m) => (
+                  {ollamaModels.map((m) => (
                     <option key={m} value={m}>
                       {m}
                     </option>
                   ))}
                 </select>
               </div>
+
+              {/* 모델 정보 */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-xs text-gray-600">
+                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                  <span>LLM 연결됨</span>
+                </div>
+              </div>
             </div>
 
-            <div className="text-xs text-gray-600 bg-white px-3 py-2 rounded-lg border border-gray-200">
-              현재: {useOpenAI ? "OpenAI" : "Ollama"} • {selectedModel}
+            {/* 현재 선택된 모델 표시 */}
+            <div className="flex items-center gap-3">
+              <div className="text-sm font-medium text-gray-700 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
+                <span className="text-gray-500">현재 모델:</span>
+                <span className="ml-2 font-mono text-blue-600">{selectedModel}</span>
+              </div>
+              <div className="text-xs text-gray-500 bg-white/50 px-2 py-1 rounded">
+                💬 EV Chat
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 메시지 영역 */}
-      <div className="overflow-y-auto p-4 md:p-6">
+      {/* 메시지 영역 - 남은 공간 모두 사용 */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 min-h-0">
         <div className="max-w-4xl mx-auto w-full space-y-8">
           {messages.length === 0 && (
             <div className="text-center py-16">
@@ -317,8 +301,8 @@ export function EvChatContent() {
         </div>
       </div>
 
-      {/* 입력 영역 */}
-      <div className="border-t border-gray-200 bg-white p-3 pb-[max(0px,env(safe-area-inset-bottom))]">
+      {/* 입력 영역 - 고정 높이 */}
+      <div className="flex-shrink-0 mb-4 border-t border-gray-200 bg-white p-3 pb-[max(0px,env(safe-area-inset-bottom))]">
         <div className="max-w-3xl mx-auto">
           <form
             onSubmit={(e) => {

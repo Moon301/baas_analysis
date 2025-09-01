@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api.v1 import vehicles, performance, analytics, baas
+from .api.v1 import vehicles, performance, analytics, ev_chat, battery_trend
 
 app = FastAPI(
     title="BAAS Analysis API",
@@ -21,7 +21,8 @@ app.add_middleware(
 app.include_router(vehicles.router, prefix="/api/v1")
 app.include_router(performance.router, prefix="/api/v1")
 app.include_router(analytics.router, prefix="/api/v1")
-app.include_router(baas.router, prefix="/api/v1")
+app.include_router(ev_chat.router, prefix="/api/v1/ev-chat", tags=["EV Chat"])
+app.include_router(battery_trend.router, prefix="/api/v1/battery-trend", tags=["Battery Trend"])
 
 @app.get("/")
 def read_root():

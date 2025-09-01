@@ -19,7 +19,10 @@ import {
 // Plotly.js 타입 정의
 declare global {
   interface Window {
-    Plotly: any
+    Plotly: {
+      newPlot: (div: HTMLElement, data: unknown[], layout: unknown, config?: unknown) => Promise<void>
+      purge: (div: HTMLElement) => void
+    }
   }
 }
 

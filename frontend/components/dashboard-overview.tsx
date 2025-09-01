@@ -249,7 +249,7 @@ export function DashboardOverview() {
       {/* 페이지 제목 */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">EV Performance Dashboard</h1>
-        <p className="text-gray-600 mt-2">전기차 성능진단 시스템 대시보드 (SOC/SOH 포함)</p>
+        <p className="text-gray-600 mt-2">전기차 성능진단 시스템 대시보드</p>
       </div>
 
       {/* 데이터 수집 현황 */}
@@ -485,13 +485,13 @@ export function DashboardOverview() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-gray-50">
-                      <th className="text-left p-3 font-medium">모델 ID</th>
+                      <th className="text-left p-3 font-medium">차량 ID</th>
                       <th className="text-left p-3 font-medium">차종</th>
                       <th className="text-left p-3 font-medium">연식</th>
                       <th className="text-left p-3 font-medium">전체 구간</th>
                       <th className="text-left p-3 font-medium">유효 구간</th>
                       <th className="text-left p-3 font-medium">유효 비율</th>
-                      <th className="text-left p-3 font-medium">총 활동 시간</th>
+                      <th className="text-left p-3 font-medium">총 주행 시간</th>
                       <th className="text-left p-3 font-medium">평균 구간 시간</th>
                       <th className="text-left p-3 font-medium">마지막 활동</th>
                     </tr>

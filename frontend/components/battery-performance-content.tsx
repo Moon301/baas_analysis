@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Battery, Zap, TrendingUp, Car, Gauge, Activity } from "lucide-react"
+import { Battery, Zap, TrendingUp, Car, Gauge, Activity, ChevronDown, ChevronUp, BookOpen } from "lucide-react"
 import {
   Tooltip,
   ResponsiveContainer,
@@ -23,7 +23,8 @@ import { useEffect } from "react"
 declare global {
   interface Window {
     Plotly: {
-      newPlot: (div: HTMLElement, data: unknown[], layout: unknown, config?: unknown) => void
+      newPlot: (div: HTMLElement, data: unknown[], layout: unknown, config?: unknown) => Promise<void>
+      purge: (div: HTMLElement) => void
     }
   }
 }
@@ -87,6 +88,7 @@ export function BatteryPerformanceContent() {
   const [loading, setLoading] = useState(true)
   const [segmentsData, setSegmentsData] = useState<unknown[]>([])
   const [pagination, setPagination] = useState({ limit: 1000, offset: 0, total: 0 })
+  const [isEvaluationCriteriaExpanded, setIsEvaluationCriteriaExpanded] = useState(false)
 
   // 데이터 로드
   useEffect(() => {
@@ -107,7 +109,7 @@ export function BatteryPerformanceContent() {
           const rankingsData = await rankingsResponse.json()
           console.log('랭킹 데이터:', rankingsData)
           console.log('첫 번째 차량 car_type:', rankingsData.data?.[0]?.car_type)
-          console.log('모든 차량 car_type:', rankingsData.data?.map(v => ({ clientid: v.clientid, car_type: v.car_type })))
+          console.log('모든 차량 car_type:', rankingsData.data?.map((v: BatteryPerformanceRanking) => ({ clientid: v.clientid, car_type: v.car_type })))
           setRankings(rankingsData.data || [])
           setPagination(prev => ({
             ...prev,
@@ -540,23 +542,282 @@ export function BatteryPerformanceContent() {
         </CardContent>
       </Card>
 
-      {/* 페이지네이션 정보 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">데이터 로드 현황</CardTitle>
-          <CardDescription>현재 로드된 데이터 정보</CardDescription>
-        </CardHeader>
-        <CardContent>
+      {/* 배터리 성능 평가 기준 */}
+      <Card className=" border-blue-200">
+        <CardHeader 
+          className="cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => setIsEvaluationCriteriaExpanded(!isEvaluationCriteriaExpanded)}
+        >
           <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              총 {pagination.total}대 중 {rankings.length}대 로드됨
+            <div>
+              <CardTitle className="font-semibold text-lg text-blue-600 flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                배터리 성능 평가 기준
+              </CardTitle>
+              <CardDescription>6개 영역별 세부 평가 기준 및 점수 체계</CardDescription>
             </div>
-            <div className="text-sm text-muted-foreground">
-              페이지 크기: {pagination.limit}대
+            <div className="flex-shrink-0 ml-4">
+              {isEvaluationCriteriaExpanded ? (
+                <ChevronUp className="h-5 w-5 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+              )}
             </div>
           </div>
-        </CardContent>
+        </CardHeader>
+        {isEvaluationCriteriaExpanded && (
+          <CardContent>
+            {/* 총점 및 등급 체계 */}
+            <Card className=" mb-10 border-1 border-solid border-gray-200">
+              <CardHeader>
+                <CardTitle className="text-center text-lg">점수 구성 (100점 만점)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
+                    <div className="text-sm font-medium text-green-800">SOH</div>
+                    <div className="text-lg font-bold text-green-600">20점</div>
+                  </div>
+                  <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="text-sm font-medium text-purple-800">주행 효율</div>
+                    <div className="text-lg font-bold text-purple-600">20점</div>
+                  </div>
+                  <div className="text-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <div className="text-sm font-medium text-yellow-800">충전 효율</div>
+                    <div className="text-lg font-bold text-yellow-600">15점</div>
+                  </div>
+                  <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
+                    <div className="text-sm font-medium text-orange-800">온도 안정성</div>
+                    <div className="text-lg font-bold text-orange-600">15점</div>
+                  </div>
+                  <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="text-sm font-medium text-blue-800">셀 밸런싱</div>
+                    <div className="text-lg font-bold text-blue-600">15점</div>
+                  </div>
+                  <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
+                    <div className="text-sm font-medium text-red-800">충전 습관</div>
+                    <div className="text-lg font-bold text-red-600">15점</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* SOH (20점) */}
+              <Card>
+                <CardHeader className="pb-3 border-b border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <Battery className="h-5 w-5 text-green-600" />
+                    <CardTitle className="text-green-600 text-base">SOH - 배터리 건강도</CardTitle>
+                    <Badge variant="outline" className="w-fit text-green-600 border-green-600">20점</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-4">
+                    <div>
+                      <div className="font-medium text-sm mb-2">절대값 평가</div>
+                      <div className="text-xs space-y-1 text-muted-foreground">
+                        <div>• 98% 이상: 10점 (우수)</div>
+                        <div>• 95% 이상: 8점 (양호)</div>
+                        <div>• 90% 이상: 6점 (보통)</div>
+                        <div>• 88% 이상: 4점 (미흡)</div>
+                        <div>• 85% 이상: 3점 (미흡)</div>
+                        <div>• 80% 이상: 2점 (교체 권장)</div>
+                        <div>• 70% 이상: 1점 (교체 권장)</div>
+                        <div>• 70% 미만: 0점 (교체 권장)</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm mb-2">안정성 평가</div>
+                      <div className="text-xs space-y-1 text-muted-foreground">
+                        <div>• 표준편차 0.5% 이하: 8점</div>
+                        <div>• 0.5~1.0%: 6점</div>
+                        <div>• 1.0~2.0%: 4점</div>
+                        <div>• 2.0% 초과: 0점</div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 셀 밸런싱 (15점) */}
+              <Card>
+                <CardHeader className="pb-3 border-b border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-blue-600" />
+                    <CardTitle className="text-blue-600 text-base">셀 밸런싱</CardTitle>
+                    <Badge variant="outline" className="w-fit text-blue-600 border-blue-600">15점</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-4">
+                    <div>
+                      <div className="font-medium text-sm mb-2">전압 편차</div>
+                      <div className="text-xs space-y-1 text-muted-foreground">
+                        <div>• 0.05V 이하: 10점 (완벽)</div>
+                        <div>• 0.05~0.10V: 8점 (우수)</div>
+                        <div>• 0.10~0.15V: 6점 (양호)</div>
+                        <div>• 0.15~0.20V: 4점 (보통)</div>
+                        <div>• 0.20V 초과: 0점 (위험)</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm mb-2">편차 안정성</div>
+                      <div className="text-xs space-y-1 text-muted-foreground">
+                        <div>• 표준편차 0.02V 이하: 5점</div>
+                        <div>• 0.02~0.05V: 4점</div>
+                        <div>• 0.05~0.10V: 3점</div>
+                        <div>• 0.10V 초과: 0점</div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 주행 효율 (20점) */}
+              <Card>
+                <CardHeader className="pb-3 border-b border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <Car className="h-5 w-5 text-purple-600" />
+                    <CardTitle className="text-purple-600 text-base">주행 효율</CardTitle>
+                    <Badge variant="outline" className="w-fit text-purple-600 border-purple-600">20점</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-4">
+                    <div>
+                      <div className="font-medium text-sm mb-2">효율성</div>
+                      <div className="text-xs space-y-1 text-muted-foreground">
+                        <div>• 0.15%/km 이하: 15점 (최고)</div>
+                        <div>• 0.15~0.20%/km: 12점 (우수)</div>
+                        <div>• 0.20~0.25%/km: 9점 (양호)</div>
+                        <div>• 0.25~0.35%/km: 6점 (보통)</div>
+                        <div>• 0.35%/km 초과: 0점 (비효율)</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm mb-2">일관성</div>
+                      <div className="text-xs space-y-1 text-muted-foreground">
+                        <div>• 표준편차 0.04 이하: 5점</div>
+                        <div>• 0.04~0.07: 4점</div>
+                        <div>• 0.07~0.12: 3점</div>
+                        <div>• 0.12 초과: 0점</div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 충전 효율 (15점) */}
+              <Card>
+                <CardHeader className="pb-3 border-b border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-yellow-600" />
+                    <CardTitle className="text-yellow-600 text-base">충전 효율</CardTitle>
+                    <Badge variant="outline" className="w-fit text-yellow-600 border-yellow-600">15점</Badge>
+                  </div>
+                  
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-4">
+                    <div>
+                      <div className="font-medium text-sm mb-2">완속충전 (AC)</div>
+                      <div className="text-xs space-y-1 text-muted-foreground">
+                        <div>• 15%/h 이상: 10점 (최고)</div>
+                        <div>• 12%/h 이상: 8점 (우수)</div>
+                        <div>• 10%/h 이상: 7점 (양호)</div>
+                        <div>• 8%/h 이상: 6점 (보통)</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm mb-2">급속충전 (DC)</div>
+                      <div className="text-xs space-y-1 text-muted-foreground">
+                        <div>• 100%/h 이상: 10점 (최고)</div>
+                        <div>• 80%/h 이상: 8점 (우수)</div>
+                        <div>• 65%/h 이상: 7점 (양호)</div>
+                        <div>• 50%/h 이상: 6점 (보통)</div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-blue-600 font-medium bg-blue-50 p-2 rounded">
+                      적응형 평가: 사용 패턴에 따라 평가
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 온도 안정성 (15점) */}
+              <Card>
+                <CardHeader className="pb-3 border-b border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <Gauge className="h-5 w-5 text-orange-600" />
+                    <CardTitle className="text-orange-600 text-base">온도 안정성</CardTitle>
+                    <Badge variant="outline" className="w-fit text-orange-600 border-orange-600">15점</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-4">
+                    <div>
+                      <div className="font-medium text-sm mb-2">온도 범위</div>
+                      <div className="text-xs space-y-1 text-muted-foreground">
+                        <div>• 5℃ 이하 편차: 8점 (우수)</div>
+                        <div>• 5~8℃: 6점 (양호)</div>
+                        <div>• 8~12℃: 4점 (보통)</div>
+                        <div>• 12~20℃: 2점 (미흡)</div>
+                        <div>• 20℃ 초과: 0점 (불량)</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm mb-2">온도 안정성</div>
+                      <div className="text-xs space-y-1 text-muted-foreground">
+                        <div>• 평균 온도 표준편차 3℃ 이하: 7점</div>
+                        <div>• 3~5℃: 5점</div>
+                        <div>• 5~8℃: 3점</div>
+                        <div>• 8~12℃: 1점</div>
+                        <div>• 12℃ 초과: 0점</div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 충전 습관 (15점) */}
+              <Card>
+                <CardHeader className="pb-3 border-b border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-red-600" />
+                    <CardTitle className="text-red-600 text-base">충전 습관</CardTitle>
+                    <Badge variant="outline" className="w-fit text-red-600 border-red-600">15점</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-4">
+                    <div>
+                      <div className="font-medium text-sm mb-2">충전 시작 SOC</div>
+                      <div className="text-xs space-y-1 text-muted-foreground">
+                        <div>• 20~30%에서 시작: 8점 (이상적)</div>
+                        <div>• 15~35%: 6점 (양호)</div>
+                        <div>• 10~40%: 4점 (보통)</div>
+                        <div>• 5~50%: 2점 (개선 필요)</div>
+                        <div>• 기타: 0점 (부적절)</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm mb-2">충전 완료 SOC</div>
+                      <div className="text-xs space-y-1 text-muted-foreground">
+                        <div>• 80~90%에서 완료: 7점 (이상적)</div>
+                        <div>• 75~95%: 5점 (양호)</div>
+                        <div>• 70~100%: 3점 (보통)</div>
+                        <div>• 60~100%: 1점 (개선 필요)</div>
+                        <div>• 기타: 0점 (부적절)</div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </CardContent>
+        )}
       </Card>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <RankingCard vehicles={topPerformers} title="고성능" bgColor="bg-green-500" />
@@ -571,7 +832,6 @@ export function BatteryPerformanceContent() {
           bgColor="bg-red-500"
         />
       </div>
-
       <Dialog open={isAnalysisOpen} onOpenChange={setIsAnalysisOpen}>
         <DialogContent className="max-w-[98vw] w-[98vw] max-h-[98vh] h-[98vh] overflow-y-auto p-2">
           <DialogHeader className="px-4 py-2">
