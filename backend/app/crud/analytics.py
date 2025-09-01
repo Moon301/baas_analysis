@@ -250,12 +250,16 @@ async def get_vehicle_segments_data(
         """
 
         rows = await db.fetch(sql, clientid)
+        print(f"DB에서 조회된 원본 데이터: {len(rows)}개 행")
 
         # state_code → segment_type 문자열로 변환
         result: List[Dict[str, Any]] = []
         for r in rows:
             d = dict(r)
+            original_state_code = d.get("state_code")
             d["segment_type"] = _state_to_type(d.pop("state_code", None))
+            print(f"state_code {original_state_code} → segment_type {d['segment_type']}")
+            
             # ISO8601 문자열이 필요하면 아래처럼 변환 (asyncpg는 보통 datetime으로 줌)
             if hasattr(d["segment_start_time"], "isoformat"):
                 d["segment_start_time"] = d["segment_start_time"].isoformat()
@@ -263,6 +267,9 @@ async def get_vehicle_segments_data(
                 d["segment_end_time"] = d["segment_end_time"].isoformat()
             result.append(d)
 
+        print(f"변환된 결과 데이터: {len(result)}개")
+        print(f"첫 번째 결과 샘플: {result[0] if result else 'None'}")
+        
         return result
         
     except Exception as e:
@@ -360,11 +367,35 @@ async def get_vehicle_summary(db: asyncpg.Connection, clientid: str) -> Dict[str
         """
         eff = await db.fetchrow(eff_sql, clientid)
 
+        # 구간 종류별 수량 조회
+        segment_counts_sql = """
+            SELECT state_code, COUNT(*) as count
+            FROM bw_segment_states
+            WHERE clientid = $1
+            GROUP BY state_code
+            ORDER BY state_code;
+        """
+        segment_counts = await db.fetch(segment_counts_sql, clientid)
+        
+        # 구간 종류별 수량을 딕셔너리로 변환
+        segment_counts_dict = {}
+        for row in segment_counts:
+            state_code = row['state_code']
+            count = row['count']
+            segment_counts_dict[state_code] = count
+
+        # 차량 메타 정보 조회
+        car_info_sql = """
+            SELECT car_type, model_year
+            FROM car_type
+            WHERE clientid = $1
+        """
+        car_info = await db.fetchrow(car_info_sql, clientid)
+
         return {
             "clientid": clientid,
-            # 차량 메타는 별도 테이블이 있다면 조인해서 채우세요.
-            "car_type": None,
-            "model_year": None,
+            "car_type": car_info["car_type"] if car_info else None,
+            "model_year": car_info["model_year"] if car_info else None,
 
             "total_segments": base["total_segments"] if base else 0,
             "valid_segments": base["valid_segments"] if base else 0,
@@ -376,8 +407,14 @@ async def get_vehicle_summary(db: asyncpg.Connection, clientid: str) -> Dict[str
             # BY_MILEAGE 뷰의 주행효율 정의와 동일한 개념(주행 세그먼트 기준)
             "avg_soc_per_km": float(eff["avg_soc_per_km"]) if eff and eff["avg_soc_per_km"] is not None else None,
 
-            # 에너지(Wh) 기반 효율은 현재 뷰에 칼럼이 없으므로 None 처리
-            "avg_efficiency_wh_per_km": None,
+            # 구간 종류별 수량 (state_code: 1=충전, 2=주행, 3=정차, 4=주차, 9=기타)
+            "segment_counts": {
+                "charging": segment_counts_dict.get(1, 0),    # 충전
+                "driving": segment_counts_dict.get(2, 0),     # 주행
+                "idling": segment_counts_dict.get(3, 0),      # 정차
+                "parked": segment_counts_dict.get(4, 0),      # 주차
+                "other": segment_counts_dict.get(9, 0)        # 기타
+            }
         }
         
     except Exception as e:
@@ -425,8 +462,8 @@ async def get_battery_performance_ranking(db: asyncpg.Connection, limit: int = 5
             avg_soh,
             avg_cell_imbalance,
             avg_soc_per_km,
-            slow_charge_efficiency,
-            fast_charge_efficiency,
+            slow_power_efficiency,
+            fast_power_efficiency,
             avg_temp_range,
             avg_start_soc,
             avg_end_soc,
@@ -443,6 +480,7 @@ async def get_battery_performance_ranking(db: asyncpg.Connection, limit: int = 5
         # 응답 데이터 구성
         rankings = []
         for row in rows:
+            print(f"처리 중인 행: clientid={row['clientid']}, car_type={row['car_type']}, model_year={row['model_year']}")
             ranking = {
                 'clientid': row['clientid'],
                 'car_type': row['car_type'] or 'Unknown',
@@ -462,8 +500,8 @@ async def get_battery_performance_ranking(db: asyncpg.Connection, limit: int = 5
                     'avg_soh': float(row['avg_soh']) if row['avg_soh'] else None,
                     'avg_cell_imbalance': float(row['avg_cell_imbalance']) if row['avg_cell_imbalance'] else None,
                     'avg_soc_per_km': float(row['avg_soc_per_km']) if row['avg_soc_per_km'] else None,
-                    'slow_charge_efficiency': float(row['slow_charge_efficiency']) if row['slow_charge_efficiency'] else None,
-                    'fast_charge_efficiency': float(row['fast_charge_efficiency']) if row['fast_charge_efficiency'] else None,
+                    'slow_power_efficiency': float(row['slow_power_efficiency']) if row['slow_power_efficiency'] else None,
+                    'fast_power_efficiency': float(row['fast_power_efficiency']) if row['fast_power_efficiency'] else None,
                     'avg_temp_range': float(row['avg_temp_range']) if row['avg_temp_range'] else None,
                     'avg_start_soc': float(row['avg_start_soc']) if row['avg_start_soc'] else None,
                     'avg_end_soc': float(row['avg_end_soc']) if row['avg_end_soc'] else None
@@ -505,9 +543,9 @@ async def get_battery_performance_ranking_summary(db: asyncpg.Connection) -> Dic
             MIN(total_battery_score) as min_total_score,
             MAX(total_battery_score) as max_total_score,
             STDDEV(total_battery_score) as stddev_total_score,
-            COUNT(CASE WHEN total_battery_score >= 80 THEN 1 END) as excellent_count,
-            COUNT(CASE WHEN total_battery_score >= 60 AND total_battery_score < 80 THEN 1 END) as good_count,
-            COUNT(CASE WHEN total_battery_score < 60 THEN 1 END) as poor_count,
+            COUNT(CASE WHEN total_battery_score >= 70 THEN 1 END) as excellent_count,
+            COUNT(CASE WHEN total_battery_score >= 50 AND total_battery_score < 70 THEN 1 END) as good_count,
+            COUNT(CASE WHEN total_battery_score < 50 THEN 1 END) as poor_count,
             COUNT(CASE WHEN battery_grade <= 3 THEN 1 END) as top_30_percent,
             COUNT(CASE WHEN battery_grade <= 5 THEN 1 END) as top_50_percent
         FROM battery_performance_ranking
@@ -545,3 +583,39 @@ async def get_battery_performance_ranking_summary(db: asyncpg.Connection) -> Dic
     except Exception as e:
         print(f"배터리 성능 랭킹 요약 통계 조회 오류: {e}")
         raise Exception(f"배터리 성능 랭킹 요약 통계 조회 실패: {str(e)}")
+
+async def get_vehicle_segments_count(db: asyncpg.Connection, clientid: str) -> Dict[str, int]:
+    """특정 차량의 실제 구간 수 조회"""
+    try:
+        sql = """
+            SELECT 
+                COUNT(CASE WHEN state_code = 2 THEN 1 END) as driving_segments,
+                COUNT(CASE WHEN state_code = 1 THEN 1 END) as charge_sessions
+            FROM bw_segment_states
+            WHERE clientid = $1
+        """
+        
+        row = await db.fetchrow(sql, clientid)
+        print(f"구간 수 조회 결과: {row}")
+        
+        if not row:
+            print(f"clientid {clientid}에 대한 구간 데이터 없음")
+            return {
+                'driving_segments': 0,
+                'charge_sessions': 0
+            }
+        
+        result = {
+            'driving_segments': row['driving_segments'] or 0,
+            'charge_sessions': row['charge_sessions'] or 0
+        }
+        print(f"clientid {clientid} 구간 수: {result}")
+        
+        return result
+        
+    except Exception as e:
+        print(f"차량 구간 수 조회 오류: {e}")
+        return {
+            'driving_segments': 0,
+            'charge_sessions': 0
+        }

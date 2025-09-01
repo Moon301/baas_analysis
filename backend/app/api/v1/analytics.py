@@ -47,6 +47,14 @@ async def get_vehicle_segments(
     """특정 차량의 구간별 데이터 조회 (마일리지 또는 SOC 기준)"""
     return await analytics_crud.get_vehicle_segments_data(db, clientid, data_type)
 
+@router.get("/vehicle/{clientid}/segments/count")
+async def get_vehicle_segments_count(
+    clientid: str,
+    db: asyncpg.Connection = Depends(get_db)
+):
+    """특정 차량의 실제 구간 수 조회"""
+    return await analytics_crud.get_vehicle_segments_count(db, clientid)
+
 @router.get("/vehicle/{clientid}/summary")
 async def get_vehicle_summary_info(
     clientid: str,

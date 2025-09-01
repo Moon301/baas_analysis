@@ -17,12 +17,14 @@ import {
   PolarRadiusAxis,
   Radar,
 } from "recharts"
-import { useEffect, useRef } from "react"
+import { useEffect } from "react"
 
 // Plotly.js 타입 정의
 declare global {
   interface Window {
-    Plotly: any
+    Plotly: {
+      newPlot: (div: HTMLElement, data: unknown[], layout: unknown, config?: unknown) => void
+    }
   }
 }
 
@@ -46,14 +48,19 @@ interface BatteryPerformanceRanking {
     avg_soh: number | null
     avg_cell_imbalance: number | null
     avg_soc_per_km: number | null
-    slow_charge_efficiency: number | null
-    fast_charge_efficiency: number | null
+    slow_power_efficiency: number | null
+    fast_power_efficiency: number | null
     avg_temp_range: number | null
     avg_start_soc: number | null
     avg_end_soc: number | null
   }
   data_quality: {
     soh_records: number
+    driving_segments: number
+    charge_sessions: number
+  }
+  // 실제 구간 수 (bw_segment_states 테이블에서 계산)
+  actual_segments?: {
     driving_segments: number
     charge_sessions: number
   }
@@ -78,9 +85,8 @@ export function BatteryPerformanceContent() {
   const [selectedVehicle, setSelectedVehicle] = useState<BatteryPerformanceRanking | null>(null)
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [segmentsData, setSegmentsData] = useState<any[]>([])
+  const [segmentsData, setSegmentsData] = useState<unknown[]>([])
   const [pagination, setPagination] = useState({ limit: 1000, offset: 0, total: 0 })
-  const chartRef = useRef<HTMLDivElement>(null)
 
   // 데이터 로드
   useEffect(() => {
@@ -100,6 +106,8 @@ export function BatteryPerformanceContent() {
         if (rankingsResponse.ok) {
           const rankingsData = await rankingsResponse.json()
           console.log('랭킹 데이터:', rankingsData)
+          console.log('첫 번째 차량 car_type:', rankingsData.data?.[0]?.car_type)
+          console.log('모든 차량 car_type:', rankingsData.data?.map(v => ({ clientid: v.clientid, car_type: v.car_type })))
           setRankings(rankingsData.data || [])
           setPagination(prev => ({
             ...prev,
@@ -167,15 +175,34 @@ export function BatteryPerformanceContent() {
     setSelectedVehicle(vehicle)
     setIsAnalysisOpen(true)
     
-    // 구간 데이터 가져오기
     try {
-      const response = await fetch(`/api/v1/analytics/vehicle/${vehicle.clientid}/segments?soc`)
-      if (response.ok) {
-        const data = await response.json()
-        setSegmentsData(data)
+      // 구간 데이터와 실제 구간 수를 병렬로 가져오기
+      const [segmentsResponse, countResponse] = await Promise.all([
+        fetch(`http://localhost:8004/api/v1/analytics/vehicle/${vehicle.clientid}/segments?soc`),
+        fetch(`http://localhost:8004/api/v1/analytics/vehicle/${vehicle.clientid}/segments/count`)
+      ])
+      
+      if (segmentsResponse.ok) {
+        const segmentsData = await segmentsResponse.json()
+        setSegmentsData(segmentsData)
+        console.log('구간 데이터 로드 성공:', segmentsData)
+      } else {
+        console.error('구간 데이터 응답 실패:', segmentsResponse.status)
+      }
+      
+      if (countResponse.ok) {
+        const countData = await countResponse.json()
+        // 실제 구간 수를 selectedVehicle에 업데이트
+        setSelectedVehicle(prev => prev ? {
+          ...prev,
+          actual_segments: countData
+        } : null)
+        console.log('구간 수 로드 성공:', countData)
+      } else {
+        console.error('구간 수 응답 실패:', countResponse.status)
       }
     } catch (error) {
-      console.error('구간 데이터 로드 실패:', error)
+      console.error('데이터 로드 실패:', error)
     }
   }
 
@@ -192,16 +219,38 @@ export function BatteryPerformanceContent() {
   }
 
   // SOC 그래프 그리기
-  const drawSOCChart = (clientid: string, segments: any[]) => {
-    if (!window.Plotly || !segments.length) return
+  const drawSOCChart = (clientid: string, segments: unknown[]) => {
+    console.log('drawSOCChart 호출:', { clientid, segmentsCount: segments.length, segments })
+    
+    if (!window.Plotly) {
+      console.log('Plotly.js가 로드되지 않음')
+      return
+    }
+    
+    if (!segments.length) {
+      console.log('구간 데이터가 없음')
+      return
+    }
 
     const chartDiv = document.getElementById(`soc-chart-${clientid}`)
-    if (!chartDiv) return
+     if (!chartDiv) {
+      console.log('차트 div를 찾을 수 없음:', `soc-chart-${clientid}`)
+      return
+    }
 
+    // 타입 안전성을 위한 인터페이스 정의
+    interface SegmentData {
+      segment_type: string
+      segment_start_time: string
+      start_soc: number
+    }
+    
     // 충전구간과 주행구간만 필터링
-    const filteredSegments = segments.filter(s => 
+    const filteredSegments = (segments as SegmentData[]).filter(s => 
       s.segment_type === 'charging' || s.segment_type === 'driving'
     )
+    
+    console.log('필터링된 구간:', filteredSegments)
     
     // 데이터 준비
     const times = filteredSegments.map(s => new Date(s.segment_start_time))
@@ -224,6 +273,9 @@ export function BatteryPerformanceContent() {
     const drivingData = filteredSegments
       .map((s, i) => ({ x: times[i], y: socValues[i], text: segmentTypes[i] }))
       .filter((_, i) => filteredSegments[i].segment_type === 'driving')
+
+    console.log('충전 데이터:', chargingData)
+    console.log('주행 데이터:', drivingData)
 
     const data = [
       // 충전구간 - 초록색 점
@@ -309,7 +361,14 @@ export function BatteryPerformanceContent() {
       displayModeBar: false
     }
 
-    window.Plotly.newPlot(chartDiv, data, layout, config)
+    console.log('Plotly 차트 생성:', { data, layout, config })
+    
+    try {
+      window.Plotly.newPlot(chartDiv, data, layout, config)
+      console.log('Plotly 차트 생성 완료')
+    } catch (error) {
+      console.error('Plotly 차트 생성 실패:', error)
+    }
   }
 
   const RankingCard = ({
@@ -500,15 +559,15 @@ export function BatteryPerformanceContent() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <RankingCard vehicles={topPerformers} title="Top 100 (고성능)" bgColor="bg-green-500" />
+        <RankingCard vehicles={topPerformers} title="고성능" bgColor="bg-green-500" />
         <RankingCard
           vehicles={mediumPerformers}
-          title="Medium (중간성능)"
+          title="중간성능"
           bgColor="bg-yellow-500"
         />
         <RankingCard
           vehicles={lowPerformers}
-          title="Bottom 100 (저성능)"
+          title="저성능"
           bgColor="bg-red-500"
         />
       </div>
@@ -540,21 +599,25 @@ export function BatteryPerformanceContent() {
                 <Card>
                   <CardContent className="p-4 text-center">
                     <Gauge className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-                    <div className="text-2xl font-bold">{selectedVehicle.data_quality.driving_segments}</div>
-                    <div className="text-sm text-muted-foreground">주행 구간 </div>
+                    <div className="text-2xl font-bold">
+                      {selectedVehicle.actual_segments?.driving_segments || selectedVehicle.data_quality.driving_segments}
+                    </div>
+                    <div className="text-sm text-muted-foreground">주행 구간</div>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4 text-center">
                     <Zap className="h-8 w-8 mx-auto mb-2 text-yellow-600" />
                     <div className="text-2xl font-bold text-yellow-600">{selectedVehicle.metrics.avg_soc_per_km?.toFixed(2) || 'N/A'} %/km</div>
-                    <div className="text-sm text-muted-foreground">평균 효율</div>
+                    <div className="text-sm text-muted-foreground">주행 효율</div>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4 text-center">
                     <Activity className="h-8 w-8 mx-auto mb-2 text-purple-600" />
-                    <div className="text-2xl font-bold">{selectedVehicle.data_quality.charge_sessions}</div>
+                    <div className="text-2xl font-bold">
+                      {selectedVehicle.actual_segments?.charge_sessions || selectedVehicle.data_quality.charge_sessions}
+                    </div>
                     <div className="text-sm text-muted-foreground">충전 구간</div>
                   </CardContent>
                 </Card>
@@ -662,8 +725,16 @@ export function BatteryPerformanceContent() {
                       <span className="font-medium">{selectedVehicle.metrics.avg_cell_imbalance?.toFixed(3) || 'N/A'}V</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>평균 효율</span>
+                      <span>주행 효율</span>
                       <span className="font-medium">{selectedVehicle.metrics.avg_soc_per_km?.toFixed(2) || 'N/A'} %/km</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>완속 충전 효율</span>
+                      <span className="font-medium">{selectedVehicle.metrics.slow_power_efficiency?.toFixed(1) || 'N/A'}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>급속 충전 효율</span>
+                      <span className="font-medium">{selectedVehicle.metrics.fast_power_efficiency?.toFixed(1) || 'N/A'}%</span>
                     </div>
                     <div className="flex justify-between">
                       <span>온도 범위</span>

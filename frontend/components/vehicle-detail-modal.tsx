@@ -35,7 +35,13 @@ interface VehicleSummary {
   last_activity: string
   total_mileage: number
   avg_soc_per_km: number | null
-  avg_efficiency_wh_per_km: number | null
+  segment_counts: {
+    charging: number    // 충전
+    driving: number     // 주행
+    idling: number      // 정차
+    parked: number      // 주차
+    other: number       // 기타
+  }
 }
 
 // 구간 데이터 타입
@@ -272,6 +278,16 @@ export function VehicleDetailModal({ isOpen, onClose, clientid }: VehicleDetailM
                   </CardContent>
                 </Card>
 
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm text-gray-600">총 활동 시간</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-lg font-semibold">{vehicleSummary.total_duration_hours.toFixed(1)}시간</div>
+                    <div className="text-sm text-gray-500">평균: {vehicleSummary.avg_duration_min.toFixed(1)}분</div>
+                  </CardContent>
+                </Card>
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-gray-600">구간 정보</CardTitle>
@@ -284,28 +300,33 @@ export function VehicleDetailModal({ isOpen, onClose, clientid }: VehicleDetailM
 
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm text-gray-600">총 활동 시간</CardTitle>
+                    <CardTitle className="text-sm text-gray-600">구간 종류별 수량</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-lg font-semibold">{vehicleSummary.total_duration_hours.toFixed(1)}시간</div>
-                    <div className="text-sm text-gray-500">평균: {vehicleSummary.avg_duration_min.toFixed(1)}분</div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm text-gray-600">효율성</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-lg font-semibold">
-                      {vehicleSummary.avg_soc_per_km ? 
-                        `${vehicleSummary.avg_soc_per_km.toFixed(2)} %/km` : 
-                        vehicleSummary.avg_efficiency_wh_per_km ? 
-                        `${vehicleSummary.avg_efficiency_wh_per_km.toFixed(1)} Wh/km` : 
-                        'N/A'
-                      }
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-green-600">충전:</span>
+                        <span className="font-medium">{vehicleSummary.segment_counts.charging}개</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-blue-600">주행:</span>
+                        <span className="font-medium">{vehicleSummary.segment_counts.driving}개</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-orange-600">정차:</span>
+                        <span className="font-medium">{vehicleSummary.segment_counts.idling}개</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-red-600">주차:</span>
+                        <span className="font-medium">{vehicleSummary.segment_counts.parked}개</span>
+                      </div>
+                      {vehicleSummary.segment_counts.other > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">기타:</span>
+                          <span className="font-medium">{vehicleSummary.segment_counts.other}개</span>
+                        </div>
+                      )}
                     </div>
-                    <div className="text-sm text-gray-500">총 주행: {vehicleSummary.total_mileage?.toFixed(0) || 'N/A'}km</div>
                   </CardContent>
                 </Card>
               </div>
