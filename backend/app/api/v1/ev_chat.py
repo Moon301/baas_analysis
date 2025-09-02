@@ -111,6 +111,13 @@ def get_objects_and_columns():
     return result
 
 
+def _jsonify_row(v):
+    if isinstance(v, decimal.Decimal):
+        return float(v)
+    if isinstance(v, (datetime.date, datetime.datetime, datetime.time)):
+        return v.isoformat()
+    return v
+
 class ChatRequest(BaseModel):
     message: str
     model: str = "gpt-oss:20b"
@@ -374,7 +381,7 @@ def code_answer(state: EvState) -> EvState:
 
 
 
-def generate_sql_query(state: EvState) -> EvState:
+def db_info_node(state: EvState) -> EvState:
     logger.info("DB 체크 노드 실행")
     db_info = get_objects_and_columns()
     
@@ -400,7 +407,8 @@ def generate_sql_query(state: EvState) -> EvState:
     - Do not invent tables or columns not in the schema.
     - Always respect the column descriptions, units, and data types.
     - Return only a valid SQL query (no prose, no markdown, no extra text).
-    - SQL 쿼리는 데이터가 과부화 되지 않게 limit 10 의 조건을 걸어주세요
+    - 전체 조건이 아닌 특정 조건으로 필터링 해주세요
+    - SQL 쿼리는 데이터가 과부화 되지 않게 limit 30 의 조건을 걸어주세요
     """
     
     prompt = ChatPromptTemplate.from_messages(
@@ -412,65 +420,6 @@ def generate_sql_query(state: EvState) -> EvState:
     chain = prompt | ChatOllama(model=select_model)
     response = chain.invoke({"question": state["user_question"],"db_info": db_info})
     return {"db_query": response.content}
-
-
-# DB 테이블 조회 노드
-
-def db_info_node(state: EvState) -> EvState:
-    
-    logger.info("DB 테이블 조회 노드 실행")
-    
-    conn = psycopg2.connect(
-        host=os.getenv("DB_HOST"),
-        port=5432,
-        dbname=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD")
-    )
-    cur = conn.cursor()
-
-    cur.execute(
-    """
-        SELECT c.relname AS object_name,
-            d.description
-        FROM pg_class c
-        LEFT JOIN pg_description d ON d.objoid = c.oid
-        WHERE c.relkind IN ('r','m','v')  -- r=table, m=matview, v=view
-        AND c.relnamespace = 'public'::regnamespace;
-    """
-    )
-
-    tables = cur.fetchall()
-
-    table_list = [t[0] for t in tables]
-    print("Public 스키마 테이블 목록:", table_list)
-
-    cur.close()
-    conn.close()
-    
-    return {"db_info": table_list}
-
-
-# DB 쿼리 생성 노드
-def generate_query(state: EvState) -> EvState:
-    logger.info("DB 쿼리 생성 노드 실행")
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", "You are a helpful assistant that generates 포스트그래 SQL queries. 다른 설명은 하지말고 쿼리문만 생성해"),
-            ("user", "Generate a SQL query to answer the following question: {question}"),
-        ]
-    )
-    chain = prompt | ChatOllama(model=select_model)
-    response = chain.invoke({"question": state["user_question"]})
-    return {"db_query": response.content}
-
-def _jsonify_row(v):
-    if isinstance(v, decimal.Decimal):
-        return float(v)
-    if isinstance(v, (datetime.date, datetime.datetime, datetime.time)):
-        return v.isoformat()
-    return v
-
 
 # SQL 쿼리 실행 노드
 def db_query_excute(state: EvState) -> EvState:
@@ -497,7 +446,7 @@ def db_query_excute(state: EvState) -> EvState:
         cur.close()
         conn.close()
 
-def ev_answer(state: EvState) -> EvState:
+def db_answer(state: EvState) -> EvState:
     # db_result가 파이썬 객체라면 모델에선 문자열이 다루기 쉬움
     db_payload = state["db_result"]
     
@@ -566,10 +515,8 @@ async def chat_with_agent(
         workflow.add_node("code_answer", code_answer)
         
         workflow.add_node("db_info_node", db_info_node)
-        workflow.add_node("generate_query", generate_query)
-        
         workflow.add_node("db_query_excute", db_query_excute)
-        workflow.add_node("ev_answer", ev_answer)
+        workflow.add_node("db_answer", db_answer)
 
 
         workflow.add_conditional_edges(
@@ -594,9 +541,13 @@ async def chat_with_agent(
         
         
         workflow.add_edge("code_node", "code_answer")
-        # 일반 답변 플로우
+        
+        workflow.add_edge("db_info_node", "db_query_excute")
+        workflow.add_edge("db_query_excute", "db_answer")
+        
         workflow.add_edge("general_answer", END)
         workflow.add_edge("code_answer", END)
+        workflow.add_edge("db_answer", END)
 
 
         # 기록을 위한 메모리 저장소를 설정합니다.
