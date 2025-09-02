@@ -59,19 +59,19 @@ export function BatteryTrendContent() {
     fetchWeeklyVehicles();
   }, []);
 
-  // 차량 목록 로드 후 V000AL0002 자동 선택
+  // 차량 목록 로드 후 V009BH0000 자동 선택 (주간 차량 목록 기준)
   useEffect(() => {
-    if (vehicles.length > 0 && !selectedVehicle) {
-      const defaultVehicle = vehicles.find(v => v.clientid === 'V011AK0000');
+    if (weeklyVehicles.length > 0 && !selectedVehicle) {
+      const defaultVehicle = weeklyVehicles.find(v => v.clientid === 'V009BH0000');
       if (defaultVehicle) {
-        setSelectedVehicle('V011AK0000');
-        // 자동으로 배터리 트렌드 조회
+        setSelectedVehicle('V009BH0000');
+        // 자동으로 주간 배터리 트렌드 조회
         setTimeout(() => {
-          fetchBatteryTrendForVehicle('V011AK0000');
+          fetchWeeklyBatteryTrendForVehicle('V009BH0000');
         }, 100);
       }
     }
-  }, [vehicles, selectedVehicle]);
+  }, [weeklyVehicles, selectedVehicle]);
 
   const fetchVehicles = async () => {
     try {

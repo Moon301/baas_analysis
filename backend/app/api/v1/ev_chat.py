@@ -510,8 +510,6 @@ def db_answer(state: EvState) -> EvState:
     {db_query}
     """
     
-    
-    
 
     user_msg = (
         "다음은 DB 조회 결과입니다.\n"
@@ -528,11 +526,10 @@ def db_answer(state: EvState) -> EvState:
         ("user", user_msg),
     ])
 
-    # Ollama를 쓰신다면 아래를 ChatOllama로 바꾸세요.
-    chain = prompt | ChatOllama(model=select_model)  # or ChatOpenAI(...)
+    chain = prompt | ChatOllama(model=select_model) 
     response = chain.invoke({
         "question": state["user_question"],
-        "db_result": db_payload,  # 변수는 쓰지 않지만 포맷 유지
+        "db_result": db_payload, 
         "db_query": state["db_query"]
     })
 

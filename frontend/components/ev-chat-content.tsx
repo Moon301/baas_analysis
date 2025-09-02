@@ -258,7 +258,7 @@ export function EvChatContent() {
                       onClick={() => handleSampleQuestion("전체 차량중 성능이 좋은 데이터 10개 알려줘")}
                     >
                       <div className="text-sm font-medium text-green-800 text-center">
-                        전체 차량중 성능이 좋은 데이터 10개 알려줘
+                        전체 차량중 성능이 좋은 데이터 10개를 조회해줘
                       </div>
                     </div>
                     <div 

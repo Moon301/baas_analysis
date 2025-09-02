@@ -166,6 +166,124 @@ async def get_battery_trend(clientid: str = Query(..., description="차량 ID"))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"데이터베이스 오류: {str(e)}")
 
+@router.get("/weekly-vehicles")
+async def get_weekly_vehicles():
+    """6주 이상 데이터가 있고 전반적으로 감소 추세를 보이는 차량 목록을 반환합니다."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 6주 이상 데이터가 있고 전반적으로 감소 추세를 보이는 차량들만 조회
+        query = """
+        WITH base AS (
+          SELECT
+            b.*,
+            ROW_NUMBER() OVER (PARTITION BY b.clientid ORDER BY b.week_start) AS week_seq,
+            COUNT(*)    OVER (PARTITION BY b.clientid)                         AS n
+          FROM bw_esoh_weekly b
+        ),
+        trend AS (
+          SELECT DISTINCT
+            clientid,
+            n,
+            REGR_SLOPE(p20_ma4, week_seq) OVER (
+              PARTITION BY clientid
+              ORDER BY week_seq
+              ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+            ) AS slope
+          FROM base
+        ),
+        eligible_clients AS (
+          SELECT clientid
+          FROM trend
+          WHERE n >= 6
+            AND slope < 0          -- 기울기가 음수면 전반적 감소 추세
+        )
+        SELECT DISTINCT e.clientid, ct.car_type
+        FROM eligible_clients e
+        LEFT JOIN car_type ct ON e.clientid = ct.clientid
+        ORDER BY e.clientid
+        """
+        
+        cursor.execute(query)
+        results = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return {"vehicles": [dict(row) for row in results]}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"데이터베이스 오류: {str(e)}")
+
+@router.get("/weekly-battery-trend")
+async def get_weekly_battery_trend(clientid: str = Query(..., description="차량 ID")):
+    """특정 차량의 주간 배터리 성능 트렌드를 반환합니다 (6주 이상, 감소 추세 차량만)."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 먼저 해당 차량이 조건을 만족하는지 확인
+        eligibility_query = """
+        WITH base AS (
+          SELECT
+            b.*,
+            ROW_NUMBER() OVER (PARTITION BY b.clientid ORDER BY b.week_start) AS week_seq,
+            COUNT(*)    OVER (PARTITION BY b.clientid)                         AS n
+          FROM bw_esoh_weekly b
+          WHERE b.clientid = %s
+        ),
+        trend AS (
+          SELECT DISTINCT
+            clientid,
+            n,
+            REGR_SLOPE(p20_ma4, week_seq) OVER (
+              PARTITION BY clientid
+              ORDER BY week_seq
+              ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+            ) AS slope
+          FROM base
+        )
+        SELECT clientid, n, slope
+        FROM trend
+        WHERE n >= 6 AND slope < 0
+        """
+        
+        cursor.execute(eligibility_query, (clientid,))
+        eligibility = cursor.fetchone()
+        
+        if not eligibility:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"해당 차량({clientid})은 6주 이상 데이터가 있거나 감소 추세를 보이지 않습니다."
+            )
+        
+        # 조건을 만족하는 경우 주간 배터리 트렌드 데이터 조회
+        trend_query = """
+        SELECT week_start, weekly_p20_esoh, p20_ma4, delta_1w, n_sessions
+        FROM bw_esoh_weekly
+        WHERE clientid = %s
+        ORDER BY week_start
+        """
+        
+        cursor.execute(trend_query, (clientid,))
+        results = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return {
+            "clientid": clientid,
+            "data_weeks": eligibility['n'],
+            "trend_slope": float(eligibility['slope']),
+            "trend_data": [dict(row) for row in results]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"데이터베이스 오류: {str(e)}")
+
 @router.get("/battery-trend-summary")
 async def get_battery_trend_summary():
     """전체 차량의 배터리 트렌드 요약 정보를 반환합니다."""

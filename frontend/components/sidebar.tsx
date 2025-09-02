@@ -22,7 +22,7 @@ const navigation = [
     icon: TrendingUp,
   },
   {
-    name: "EV Chat",
+    name: "EV Chat Assistant",
     href: "/ev-chat",
     icon: MessageSquare,
   },
