@@ -137,6 +137,15 @@ export function EvChatContent() {
     }, type === 'success' ? 3000 : 5000)
   }
 
+  // 샘플 질문 클릭 처리
+  const handleSampleQuestion = (question: string) => {
+    setInputValue(question)
+    // 약간의 지연 후 자동 전송
+    setTimeout(() => {
+      handleSendMessage()
+    }, 100)
+  }
+
   // Markdown 렌더링 컴포넌트
   const markdownComponents = {
     p: ({ children }: any) => <p className="mb-4 last:mb-0">{children}</p>,
@@ -205,7 +214,7 @@ export function EvChatContent() {
                 <span className="ml-2 font-mono text-blue-600">{selectedModel}</span>
               </div>
               <div className="text-xs text-gray-500 bg-white/50 px-2 py-1 rounded">
-                💬 EV Chat
+                💬 EV Chat Assistant
               </div>
             </div>
           </div>
@@ -220,27 +229,80 @@ export function EvChatContent() {
               <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full mb-6">
                 <MessageSquare className="w-10 h-10 text-white" />
               </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">EV Chat</h2>
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">EV Chat Assistant</h2>
 
               <div className="text-lg text-gray-600 max-w-3xl mx-auto mb-15">
-                <p>전기차 데이터 분석을 위한 AI 채팅입니다.</p>
+                <p>전기차 데이터 분석 데이터 조회 및 코드 생성을 위한 AI 채팅입니다.</p>
                 <p>다양한 AI 모델을 선택하여 전기차 관련 질문에 대한 지능적인 응답을 받을 수 있습니다.</p>
               </div>
 
-              <h3 className="text-lg font-semibold text-blue-900 mb-3">💡 샘플 질문</h3>
-              <div className="bg-blue-50 rounded-xl p-3 max-w-md mx-auto mb-3">
-                <div className="text-sm text-bold text-blue-800 space-y-2 text-center ">
-                  배터리 성능 1위 자동차 알려줘
+              <h3 className="text-lg font-semibold text-blue-900 mb-10">💡 샘플 질문</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                {/* 왼쪽 열 - 데이터 조회 질문 */}
+                <div>
+                  <h4 className="text-md text-center font-semibold text-green-700 mb-3 flex items-center justify-center gap-2">
+                    📊 데이터 조회
+                  </h4>
+                  <div className="space-y-2">
+                    <div 
+                      className="bg-green-50 rounded-xl p-3 cursor-pointer hover:bg-green-100 transition-colors border border-green-200"
+                      onClick={() => handleSampleQuestion("배터리 성능 1위 자동차 알려줘")}
+                    >
+                      <div className="text-sm font-medium text-green-800 text-center">
+                        배터리 성능 1위 자동차 알려줘
+                      </div>
+                    </div>
+                    <div 
+                      className="bg-green-50 rounded-xl p-3 cursor-pointer hover:bg-green-100 transition-colors border border-green-200"
+                      onClick={() => handleSampleQuestion("전체 차량중 성능이 좋은 데이터 10개 알려줘")}
+                    >
+                      <div className="text-sm font-medium text-green-800 text-center">
+                        전체 차량중 성능이 좋은 데이터 10개 알려줘
+                      </div>
+                    </div>
+                    <div 
+                      className="bg-green-50 rounded-xl p-3 cursor-pointer hover:bg-green-100 transition-colors border border-green-200"
+                      onClick={() => handleSampleQuestion("배터리 효율이 낮은 차량들은 어떤게 있어?")}
+                    >
+                      <div className="text-sm font-medium text-green-800 text-center">
+                        배터리 효율이 낮은 차량들은 어떤게 있어?
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="bg-blue-50 rounded-xl p-3 max-w-md mx-auto ">
-                <div className="text-sm text-bold text-blue-800 space-y-2 text-center ">
-                  EV3 차량 데이터에 충전 성능을 알려줘
-                </div>
-              </div>
-              <div className="bg-blue-50 rounded-xl p-3 max-w-md mx-auto ">
-                <div className="text-sm text-bold text-blue-800 space-y-2 text-center ">
-                  배터리 성능 지표에 대해서 설명해줘
+
+                {/* 오른쪽 열 - 코드 생성 질문 */}
+                <div>
+                  <h4 className="text-md text-center font-semibold text-purple-700 mb-3 flex items-center justify-center gap-2">
+                    💻 코드 생성
+                  </h4>
+                  <div className="space-y-2">
+                    <div 
+                      className="bg-purple-50 rounded-xl p-3 cursor-pointer hover:bg-purple-100 transition-colors border border-purple-200"
+                      onClick={() => handleSampleQuestion("EV3 차량 데이터에 충전 성능을 알 수 있는 코드를 생성해줘")}
+                    >
+                      <div className="text-sm font-medium text-purple-800 text-center">
+                        EV3 차량 데이터에 충전 성능을 알 수 있는 코드를 생성해줘
+                      </div>
+                    </div>
+                    <div 
+                      className="bg-purple-50 rounded-xl p-3 cursor-pointer hover:bg-purple-100 transition-colors border border-purple-200"
+                      onClick={() => handleSampleQuestion("배터리 전기차 성능을 조회하는 쿼리 생성해줘")}
+                    >
+                      <div className="text-sm font-medium text-purple-800 text-center">
+                        배터리 전기차 성능을 조회하는 쿼리 생성해줘
+                      </div>
+                    </div>
+                    <div 
+                      className="bg-purple-50 rounded-xl p-3 cursor-pointer hover:bg-purple-100 transition-colors border border-purple-200"
+                      onClick={() => handleSampleQuestion("주행거리가 가장 많은 차량을 조회하는 SQL 코드를 작성해줘")}
+                    >
+                      <div className="text-sm font-medium text-purple-800 text-center">
+                        주행거리가 가장 많은 차량을 조회하는 SQL 코드를 작성해줘
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

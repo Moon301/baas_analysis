@@ -378,37 +378,56 @@ def code_answer(state: EvState) -> EvState:
     response = chain.invoke({"question": state["user_question"], "db_info": state["db_info"], "db_query": state["db_query"]})
     return {"messages": response}
 
-
-
-
 def db_info_node(state: EvState) -> EvState:
     logger.info("DB 체크 노드 실행")
     db_info = get_objects_and_columns()
     
     system_prompt = """
-    You are an expert SQL assistant for analyzing EV battery data.
+    당신은 전기차 배터리 데이터를 분석하는 전문가용 SQL 어시스턴트입니다.
 
-    You have access to a PostgreSQL database with the following schema.
-    Only use the tables, views, and columns listed below.
-    Follow the column descriptions (unit, meaning) exactly when writing SQL.
+    다음 스키마를 가진 PostgreSQL 데이터베이스에 접근할 수 있습니다.
+    아래에 나열된 테이블, 뷰, 컬럼만 사용하십시오.
+    SQL을 작성할 때 컬럼 설명(단위, 의미)을 정확히 준수하십시오.
 
-    DB Schema (public):
+    DB 스키마 (public):
     {db_info}
 
-    Your task when a user asks a question:
-    1. Read the user’s question carefully.
-    2. Identify which tables and columns in the schema are relevant to answer the question.
-    3. Use them to generate the appropriate SQL query.
-    4. Do not provide explanations or natural language answers, only return the SQL query.
-    5. If the question cannot be answered with the schema, output a clear SQL comment like: 
+    사용자가 질문했을 때의 작업 절차:
+    1. 사용자의 질문을 주의 깊게 읽습니다.
+    2. 해당 질문에 답변하는 데 필요한 스키마의 테이블과 컬럼을 식별합니다.
+    3. 식별한 테이블/컬럼만 사용하여 적절한 SQL 쿼리를 생성합니다.
+    4. 설명이나 자연어 답변은 제공하지 말고, SQL 쿼리만 반환합니다.
+    5. 질문이 주어진 스키마로는 답변 불가능하다면, 아래 형태의 SQL 주석만 출력합니다:
     -- Question cannot be answered with the given schema
 
-    Rules:
-    - Do not invent tables or columns not in the schema.
-    - Always respect the column descriptions, units, and data types.
-    - Return only a valid SQL query (no prose, no markdown, no extra text).
-    - 전체 조건이 아닌 특정 조건으로 필터링 해주세요
-    - SQL 쿼리는 데이터가 과부화 되지 않게 limit 30 의 조건을 걸어주세요
+    규칙:
+    - 스키마에 없는 테이블이나 컬럼을 만들어내지 마십시오.
+    - 컬럼의 설명, 단위, 데이터 타입을 반드시 준수하십시오.
+    - 유효한 SQL 쿼리만 반환하십시오(프로즈, 마크다운, 추가 텍스트 금지).
+    - 전체 조건이 아닌 특정 조건으로 필터링해 주세요.
+    - 데이터 과부하를 방지하기 위해 SQL 쿼리에는 반드시 LIMIT 20을 포함해 주세요.
+    
+    
+    DB 조회 참고사항:
+    
+    사용자가 전체 데이터의 조회를 요청하면 아래 예시와 같이 조회해 주세요:
+    
+    ###사용자 질문 예시
+        - 총 데이터 행이 얼마야? (total_data_rows)
+        - 구간별 상태 분포가 어떻게돼( 주행구간이 몇 퍼센트야?, 구간별 비율 등
+        - 전체 차량이 몇대야?
+        - 총 차량수가 얼마야?
+        - 수집기간은 얼마나 돼?
+        
+    ### 사용 테이블: bw_dashboard
+    
+    ### 사용 예시 
+        
+    
+    # 모델별 차량 종류는 car_type 테이블을 참고해 주세요.
+    # 차량별 배터리 용량은 ev_battery_capacity 테이블을 참고해 주세요.
+    # 배터리 성능 관련 데이터는 battery_performance_ranking 테이블을 참고하세요.
+    
     """
     
     prompt = ChatPromptTemplate.from_messages(
@@ -453,21 +472,55 @@ def db_answer(state: EvState) -> EvState:
         # 이미 리스트[dict]면 pretty json으로
     db_text = json.dumps(db_payload, ensure_ascii=False, default=str)
 
-    system_msg = (
-        """"당신은 데이터 분석가입니다. 반드시 아래 지침을 따르세요.\n"
-        "1) 주어진 db_result(쿼리 결과)만 근거로 한국어로 답변하세요.\n"
-        "2) 필요하면 db_result 값으로 간단한 통계를 계산해 서술하되 SQL/코드 출력은 금지합니다.\n"
-        "3) 데이터가 부족하면 무엇이 더 필요한지 구체적으로 말하세요.\n"
-        "4) 추정은 '추정'임을 명시하세요.\n"
-        "5) 답변 끝에 사용한 핵심 컬럼/지표를 1줄 요약으로 덧붙이세요.\n"""
-    )
+    system_msg = """당신은 EV 배터리 데이터 분석가입니다. 아래 지침을 엄격히 따르세요.
+
+    - 주어진 db_result(쿼리 결과)만을 근거로, 사용자의 질문에 대해 간결하고 보기 좋은 한국어 리포트를 작성합니다.
+    - 리포트는 Markdown으로 작성하되, 명료하고 전문적으로 서술합니다.
+
+    [핵심 규칙]
+    1) db_result 밖의 외부 지식/가정/추측을 사용하지 마세요.
+    2) 필요한 경우 db_result 값으로 간단한 통계(평균/중앙값/최솟값/최댓값/개수)를 계산해 서술하되, SQL/코드/수식은 본문에 출력하지 마세요.
+    3) 데이터가 부족하면 무엇이 더 필요한지 구체적으로 말하세요.
+    4) 추정이 포함되면 반드시 '추정'이라고 명시하세요.
+    5) 시간 표기: 가능하면 YYYY-MM-DD HH:MM.
+    6) 새 SQL이나 추가 쿼리 제안은 금지합니다. 단, 마지막 섹션에 이미 실행된 쿼리가 제공된 경우 그대로 보여주되 수정/보완/생성하지 마세요. 제공되지 않으면 해당 섹션을 생략하세요.
+
+    [출력 형식]  ※ 섹션 제목은 그대로 사용하세요.
+    ## 요약
+    - 2~3줄로 핵심 결론만 제시.
+
+    ## 핵심 지표
+    - 총 행 수: N
+    - 가능한 경우에만 간략 통계(평균/중앙값/최솟값/최댓값 등 2~4개).
+
+    ## 관찰/인사이트
+    - 불릿 3~5개로 사실 중심의 관찰만 적습니다(패턴/변동/이상치 등). 과장 금지.
+
+    ## 한계/추가 필요
+    - 질문에 완전 답변이 어려우면 필요한 컬럼/조건/기간 등 1~3개를 구체적으로 제시합니다.
+
+    ## 사용한 DB 쿼리
+    - 아래에 제공된 를 그대로 보여주세요. 제공되지 않았다면 이 섹션을 생략하세요.
+
+    ### 사용한 컬럼·지표 요약
+    - 본문에서 활용한 핵심 컬럼명과 지표(예: 평균, 중앙값, 그룹 기준)를 1줄로 요약.
+    
+    
+    사용된 DB 쿼리:
+    {db_query}
+    """
+    
+    
+    
 
     user_msg = (
         "다음은 DB 조회 결과입니다.\n"
         "```json\n{db_result}\n```\n\n"
+
+        """
+        요청: 위 db_result만을 근거로 간결하게 답하세요. SQL/코드나 추가 쿼리는 제안하지 마세요.
+        """
         "사용자 질문:\n{question}\n\n"
-        "요청: 위 db_result만을 근거로 간결하게 답하세요. "
-        "SQL/코드나 추가 쿼리는 제안하지 마세요."
     )
 
     prompt = ChatPromptTemplate.from_messages([
@@ -480,6 +533,7 @@ def db_answer(state: EvState) -> EvState:
     response = chain.invoke({
         "question": state["user_question"],
         "db_result": db_payload,  # 변수는 쓰지 않지만 포맷 유지
+        "db_query": state["db_query"]
     })
 
     return {"messages": response}
