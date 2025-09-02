@@ -221,24 +221,26 @@ export function EvChatContent() {
                 <MessageSquare className="w-10 h-10 text-white" />
               </div>
               <h2 className="text-3xl font-bold text-gray-900 mb-4">EV Chat</h2>
-              <p className="text-lg text-gray-600 max-w-3xl mx-auto mb-8">
-                전기차 데이터 분석을 위한 AI 채팅입니다. 다양한 AI 모델을 선택하여 전기차 관련 질문에 대한 지능적인 응답을 받을 수 있습니다.
-              </p>
-              <div className="bg-blue-50 rounded-xl p-6 max-w-md mx-auto">
-                <h3 className="text-lg font-semibold text-blue-900 mb-3">💡 사용 팁</h3>
-                <div className="text-sm text-blue-800 space-y-2 text-left">
-                  <div className="flex items-start gap-2">
-                    <span className="text-blue-600">•</span>
-                    <span>전기차 성능, 효율성, 주행 특성에 대해 질문해보세요</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-blue-600">•</span>
-                    <span>배터리 수명, 충전 패턴, 차량 비교 등 구체적으로 물어보세요</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-blue-600">•</span>
-                    <span>AI 모델을 선택하여 다양한 응답을 경험해보세요</span>
-                  </div>
+
+              <div className="text-lg text-gray-600 max-w-3xl mx-auto mb-15">
+                <p>전기차 데이터 분석을 위한 AI 채팅입니다.</p>
+                <p>다양한 AI 모델을 선택하여 전기차 관련 질문에 대한 지능적인 응답을 받을 수 있습니다.</p>
+              </div>
+
+              <h3 className="text-lg font-semibold text-blue-900 mb-3">💡 샘플 질문</h3>
+              <div className="bg-blue-50 rounded-xl p-3 max-w-md mx-auto mb-3">
+                <div className="text-sm text-bold text-blue-800 space-y-2 text-center ">
+                  배터리 성능 1위 자동차 알려줘
+                </div>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-3 max-w-md mx-auto ">
+                <div className="text-sm text-bold text-blue-800 space-y-2 text-center ">
+                  EV3 차량 데이터에 충전 성능을 알려줘
+                </div>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-3 max-w-md mx-auto ">
+                <div className="text-sm text-bold text-blue-800 space-y-2 text-center ">
+                  배터리 성능 지표에 대해서 설명해줘
                 </div>
               </div>
             </div>

@@ -496,10 +496,40 @@ export function BatteryPerformanceContent() {
             <Activity className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {topPerformers.length}:{mediumPerformers.length}:{lowPerformers.length}
+            <div className="flex flex-col lg:flex-row items-center gap-2 lg:gap-3 mb-2">
+              {(() => {
+                const total = topPerformers.length + mediumPerformers.length + lowPerformers.length;
+                const topPercent = total > 0 ? Math.round((topPerformers.length / total) * 100) : 0;
+                const mediumPercent = total > 0 ? Math.round((mediumPerformers.length / total) * 100) : 0;
+                const lowPercent = total > 0 ? Math.round((lowPerformers.length / total) * 100) : 0;
+                
+                return (
+                  <>
+                    {/* 고성능 - 초록색 */}
+                    <div className="flex col-span-2 items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 w-full lg:w-auto justify-center sm:justify-start">
+                      <div className="w-3 h-3 bg-green-500 rounded-full flex-shrink-0"></div>
+                      <span className="text-xs font-semibold text-green-700">고성능</span>
+                      <span className="text-xs font-bold text-green-800">{topPercent}%</span>
+                    </div>
+                    
+                    {/* 중성능 - 노란색 */}
+                    <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 w-full lg:w-auto justify-center sm:justify-start">
+                      <div className="w-3 h-3 bg-yellow-500 rounded-full flex-shrink-0"></div>
+                      <span className="text-xs font-semibold text-yellow-700">중간성능</span>
+                      <span className="text-xs font-bold text-yellow-800">{mediumPercent}%</span>
+                    </div>
+                    
+                    {/* 저성능 - 빨간색 */}
+                    <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 w-full lg:w-auto justify-center sm:justify-start">
+                      <div className="w-3 h-3 bg-red-500 rounded-full flex-shrink-0"></div>
+                      <span className="text-xs font-semibold text-red-700">저성능</span>
+                      <span className="text-xs font-bold text-red-800">{lowPercent}%</span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
-            <p className="text-xs text-muted-foreground">고:중:저 성능</p>
+            <p className="text-xs text-muted-foreground">성능 등급별 분포 비율</p>
           </CardContent>
         </Card>
       </div>

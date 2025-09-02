@@ -480,7 +480,6 @@ async def get_battery_performance_ranking(db: asyncpg.Connection, limit: int = 5
         # 응답 데이터 구성
         rankings = []
         for row in rows:
-            print(f"처리 중인 행: clientid={row['clientid']}, car_type={row['car_type']}, model_year={row['model_year']}")
             ranking = {
                 'clientid': row['clientid'],
                 'car_type': row['car_type'] or 'Unknown',
